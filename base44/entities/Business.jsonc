@@ -69,12 +69,17 @@
       "type": "string",
       "description": "VAPI assistant ID"
     },
+    "vapi_phone_number_id": {
+      "type": "string",
+      "description": "VAPI phone number resource ID linked to Twilio"
+    },
     "twilio_phone_number": {
       "type": "string",
       "description": "Provisioned Twilio number"
     },
     "twilio_phone_sid": {
-      "type": "string"
+      "type": "string",
+      "description": "Twilio IncomingPhoneNumber SID"
     },
     "subscription_plan": {
       "type": "string",

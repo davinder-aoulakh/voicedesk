@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Bot, Phone, Settings, Save, RefreshCw, Zap, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react';
+import { Bot, Phone, Settings, Save, RefreshCw, Zap, ToggleLeft, ToggleRight, AlertCircle, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ export default function AgentSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -53,6 +54,24 @@ export default function AgentSettings() {
     setAgent(updated);
     await base44.entities.Agent.update(agent.id, { status: newStatus });
     toast.success(newStatus === 'active' ? 'Agent activated' : 'Agent paused');
+  };
+
+  const handleLinkPhone = async () => {
+    if (!agent?.vapi_assistant_id) return toast.error('No VAPI assistant linked');
+    if (!biz?.twilio_phone_number || !biz?.twilio_phone_sid) return toast.error('No Twilio phone number provisioned');
+    setLinking(true);
+    try {
+      await base44.functions.invoke('linkVapiPhoneNumber', {
+        business_id: biz.id,
+        assistant_id: agent.vapi_assistant_id,
+        twilio_phone_number: biz.twilio_phone_number,
+        twilio_phone_sid: biz.twilio_phone_sid,
+      });
+      toast.success('Phone number linked to VAPI agent');
+    } catch (e) {
+      toast.error('Linking failed: ' + e.message);
+    }
+    setLinking(false);
   };
 
   const handleSyncVapi = async () => {
@@ -171,11 +190,23 @@ export default function AgentSettings() {
           <div className="bg-card border border-border rounded-2xl p-6">
             <h3 className="font-syne font-semibold mb-4">Phone Number</h3>
             {biz?.twilio_phone_number ? (
-              <div className="flex items-center gap-3 p-4 bg-success/5 border border-success/20 rounded-xl">
-                <Phone className="w-5 h-5 text-success" />
-                <div>
-                  <p className="font-semibold text-success">{biz.twilio_phone_number}</p>
-                  <p className="text-xs text-muted-foreground">AI agent answers all calls to this number</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-success/5 border border-success/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-5 h-5 text-success shrink-0" />
+                    <div>
+                      <p className="font-semibold text-success">{biz.twilio_phone_number}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {biz.vapi_phone_number_id
+                          ? `Linked to VAPI · ID: ${biz.vapi_phone_number_id}`
+                          : 'Not yet linked to VAPI agent'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleLinkPhone} disabled={linking}>
+                    <Link className={`w-3.5 h-3.5 mr-1.5 ${linking ? 'animate-spin' : ''}`} />
+                    {linking ? 'Linking…' : biz.vapi_phone_number_id ? 'Re-link' : 'Link to Agent'}
+                  </Button>
                 </div>
               </div>
             ) : (

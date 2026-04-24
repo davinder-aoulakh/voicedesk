@@ -133,13 +133,36 @@ export default function Onboarding() {
   const handleProvisionPhone = async () => {
     setLoading(true);
     try {
-      const res = await base44.functions.invoke('provisionPhoneNumber', {
+      // Step 1: Provision Twilio number
+      const provRes = await base44.functions.invoke('provisionPhoneNumber', {
         business_id: createdBusiness.id,
         country: business.country || 'AU',
       });
-      const phone = res.data?.phone_number;
-      setPhoneNumber(phone);
-      await base44.entities.Business.update(createdBusiness.id, { twilio_phone_number: phone, onboarding_completed: true });
+      const { phone_number, phone_sid } = provRes.data;
+      setPhoneNumber(phone_number);
+
+      // Step 2: Save Twilio details to Business
+      await base44.entities.Business.update(createdBusiness.id, {
+        twilio_phone_number: phone_number,
+        twilio_phone_sid: phone_sid,
+        onboarding_completed: true,
+      });
+
+      // Step 3: Link Twilio number to VAPI assistant (if assistant exists)
+      const agents = await base44.entities.Agent.filter({ business_id: createdBusiness.id });
+      const vapiAssistantId = agents[0]?.vapi_assistant_id;
+      if (vapiAssistantId && phone_number && phone_sid) {
+        try {
+          await base44.functions.invoke('linkVapiPhoneNumber', {
+            business_id: createdBusiness.id,
+            assistant_id: vapiAssistantId,
+            twilio_phone_number: phone_number,
+            twilio_phone_sid: phone_sid,
+          });
+        } catch (linkErr) {
+          console.warn('VAPI phone linking failed (non-fatal):', linkErr.message);
+        }
+      }
     } catch (e) {
       toast.error('Phone provisioning failed: ' + e.message);
     }
