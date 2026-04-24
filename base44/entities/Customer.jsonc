@@ -23,6 +23,21 @@
         "type": "string"
       }
     },
+    "customer_tag_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "References to CustomerTag entity IDs"
+    },
+    "preferred_service": {
+      "type": "string",
+      "description": "Name of their most booked service"
+    },
+    "preferred_staff": {
+      "type": "string",
+      "description": "Name of their preferred staff member"
+    },
     "total_bookings": {
       "type": "number",
       "default": 0
