@@ -1,0 +1,81 @@
+{
+  "name": "Agent",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Agent display name"
+    },
+    "voice_id": {
+      "type": "string",
+      "description": "VAPI voice ID"
+    },
+    "voice_provider": {
+      "type": "string",
+      "default": "11labs"
+    },
+    "language": {
+      "type": "string",
+      "default": "en-AU"
+    },
+    "persona": {
+      "type": "string",
+      "description": "Agent personality description"
+    },
+    "system_prompt": {
+      "type": "string",
+      "description": "Full system prompt sent to VAPI"
+    },
+    "greeting_message": {
+      "type": "string"
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "vapi_assistant_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "paused",
+        "error"
+      ],
+      "default": "draft"
+    },
+    "max_concurrent_calls": {
+      "type": "number",
+      "default": 3
+    },
+    "call_recording_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "after_hours_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "business_id",
+    "name"
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "name": "CallLog",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "agent_id": {
+      "type": "string"
+    },
+    "vapi_call_id": {
+      "type": "string"
+    },
+    "caller_number": {
+      "type": "string"
+    },
+    "caller_name": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "inbound",
+        "outbound"
+      ],
+      "default": "inbound"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "ringing",
+        "in_progress",
+        "completed",
+        "missed",
+        "failed",
+        "voicemail"
+      ],
+      "default": "queued"
+    },
+    "duration_seconds": {
+      "type": "number"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recording_url": {
+      "type": "string"
+    },
+    "transcript": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "description": "AI-generated summary"
+    },
+    "sentiment": {
+      "type": "string",
+      "enum": [
+        "positive",
+        "neutral",
+        "negative"
+      ]
+    },
+    "booking_created": {
+      "type": "boolean",
+      "default": false
+    },
+    "booking_id": {
+      "type": "string"
+    },
+    "cost_usd": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "business_id"
+  ]
+}

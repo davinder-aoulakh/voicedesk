@@ -1,0 +1,68 @@
+{
+  "name": "Booking",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "agent_id": {
+      "type": "string"
+    },
+    "call_log_id": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "customer_phone": {
+      "type": "string"
+    },
+    "customer_email": {
+      "type": "string"
+    },
+    "service": {
+      "type": "string"
+    },
+    "service_duration_minutes": {
+      "type": "number"
+    },
+    "price": {
+      "type": "number"
+    },
+    "scheduled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "cancelled",
+        "completed",
+        "no_show"
+      ],
+      "default": "pending"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "ai_agent",
+        "manual",
+        "online"
+      ],
+      "default": "ai_agent"
+    },
+    "reminder_sent": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "business_id",
+    "customer_name"
+  ]
+}

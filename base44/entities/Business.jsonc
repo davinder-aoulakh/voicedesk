@@ -1,0 +1,87 @@
+{
+  "name": "Business",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Business name"
+    },
+    "industry": {
+      "type": "string",
+      "enum": [
+        "restaurant",
+        "salon",
+        "clinic",
+        "tradie",
+        "property",
+        "gym",
+        "spa",
+        "dental",
+        "legal",
+        "other"
+      ],
+      "description": "Business industry type"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "logo_url": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "business_hours": {
+      "type": "object",
+      "description": "Operating hours per day"
+    },
+    "onboarding_completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "vapi_assistant_id": {
+      "type": "string",
+      "description": "VAPI assistant ID"
+    },
+    "twilio_phone_number": {
+      "type": "string",
+      "description": "Provisioned Twilio number"
+    },
+    "twilio_phone_sid": {
+      "type": "string"
+    },
+    "subscription_plan": {
+      "type": "string",
+      "enum": [
+        "trial",
+        "starter",
+        "growth",
+        "enterprise"
+      ],
+      "default": "trial"
+    },
+    "owner_id": {
+      "type": "string",
+      "description": "User ID of the business owner"
+    }
+  },
+  "required": [
+    "name",
+    "industry"
+  ]
+}
