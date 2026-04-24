@@ -1,0 +1,20 @@
+{
+  "name": "JobTitle",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex colour for this job title tag, e.g. #8B5CF6"
+    }
+  },
+  "required": [
+    "business_id",
+    "name"
+  ]
+}

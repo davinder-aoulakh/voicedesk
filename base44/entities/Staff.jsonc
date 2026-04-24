@@ -20,6 +20,11 @@
     "photo_url": {
       "type": "string"
     },
+    "photo_file": {
+      "type": "string",
+      "format": "file",
+      "description": "Uploaded staff photo file URL"
+    },
     "bio": {
       "type": "string"
     },
@@ -41,6 +46,17 @@
     "color": {
       "type": "string",
       "description": "Calendar color for this staff member"
+    },
+    "job_title_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "References to JobTitle entity IDs"
+    },
+    "primary_location_id": {
+      "type": "string",
+      "description": "Reference to the primary Location entity ID"
     }
   },
   "required": [
