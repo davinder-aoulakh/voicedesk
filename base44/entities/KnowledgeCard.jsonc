@@ -1,0 +1,56 @@
+{
+  "name": "KnowledgeCard",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "business_info",
+        "service_menu",
+        "food_menu",
+        "locations",
+        "staff",
+        "faq",
+        "service_policy",
+        "special_promotion",
+        "custom_messages"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "published",
+        "not_added"
+      ],
+      "default": "not_added"
+    },
+    "content": {
+      "type": "string",
+      "description": "The compiled text content"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "sync",
+        "upload",
+        "url",
+        "manual"
+      ]
+    },
+    "source_url": {
+      "type": "string",
+      "description": "For URL-sourced content"
+    },
+    "last_synced_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "business_id",
+    "category"
+  ]
+}

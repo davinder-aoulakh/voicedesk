@@ -83,6 +83,31 @@ export default function Onboarding() {
       is_primary: true,
     });
 
+    // Auto-create all 9 KnowledgeCards
+    const KNOWLEDGE_CATEGORIES = [
+      'business_info', 'service_menu', 'food_menu', 'locations',
+      'staff', 'faq', 'service_policy', 'special_promotion', 'custom_messages'
+    ];
+    const businessInfoContent = [
+      business.name && `Business Name: ${business.name}`,
+      business.industry && `Industry: ${business.industry}`,
+      business.phone && `Phone: ${business.phone}`,
+      business.email && `Email: ${business.email}`,
+      business.timezone && `Timezone: ${business.timezone}`,
+      business.description && `About: ${business.description}`,
+    ].filter(Boolean).join('\n');
+
+    await Promise.all(KNOWLEDGE_CATEGORIES.map(category =>
+      base44.entities.KnowledgeCard.create({
+        business_id: biz.id,
+        category,
+        status: category === 'business_info' ? 'published' : 'not_added',
+        content: category === 'business_info' ? businessInfoContent : '',
+        source: category === 'business_info' ? 'sync' : undefined,
+        last_synced_at: category === 'business_info' ? new Date().toISOString() : undefined,
+      })
+    ));
+
     // Auto-seed industry data
     setSeeding(true);
     setSeedProgress('Creating staff profiles…');
