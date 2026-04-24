@@ -23,6 +23,7 @@ import Customers from './pages/Customers';
 import KnowledgeBase from './pages/KnowledgeBase';
 import AppLayout from './components/layout/AppLayout';
 import Greetings from './pages/agent/Greetings';
+import Personality from './pages/agent/Personality';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/agent" element={<AgentSettings />} />
         <Route path="/agent/greetings" element={<Greetings />} />
+        <Route path="/agent/personality" element={<Personality />} />
         <Route path="/services" element={<Services />} />
         <Route path="/staff" element={<Staff />} />
         <Route path="/hours" element={<BusinessHours />} />
