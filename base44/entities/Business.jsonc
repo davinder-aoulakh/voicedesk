@@ -46,9 +46,20 @@
     "description": {
       "type": "string"
     },
+    "faq_content": {
+      "type": "string",
+      "description": "Industry FAQ content for the AI agent"
+    },
     "business_hours": {
       "type": "object",
       "description": "Operating hours per day"
+    },
+    "holidays": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Holiday closure dates"
     },
     "onboarding_completed": {
       "type": "boolean",

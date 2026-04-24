@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ChevronRight, ChevronLeft, Building2, Bot, Phone, CheckCircle } from 'lucide-react';
+import { Zap, ChevronRight, ChevronLeft, Building2, Bot, Phone, CheckCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { getTemplate } from '@/lib/industryTemplates';
 
 const INDUSTRIES = ['restaurant','salon','clinic','tradie','property','gym','spa','dental','legal','other'];
 const TIMEZONES = ['Australia/Sydney','Australia/Melbourne','Australia/Brisbane','Australia/Perth','Australia/Adelaide','America/New_York','America/Los_Angeles','Europe/London'];
@@ -26,10 +27,33 @@ const steps = [
   { id: 4, label: 'Done', icon: CheckCircle },
 ];
 
+async function seedIndustryData(businessId, industry) {
+  const template = getTemplate(industry);
+
+  // Seed all in parallel
+  const staffPromises = template.staff.map(s =>
+    base44.entities.Staff.create({ ...s, business_id: businessId, is_active: true })
+  );
+  const servicePromises = template.services.map(s =>
+    base44.entities.Service.create({ ...s, business_id: businessId, is_active: true, currency: 'AUD', buffer_minutes: s.buffer_minutes || 0, max_bookings_per_slot: 1 })
+  );
+
+  await Promise.all([...staffPromises, ...servicePromises]);
+
+  // Save business hours + FAQ on the business record
+  const faqText = template.faq.map(f => `Q: ${f.q}\nA: ${f.a}`).join('\n\n');
+  await base44.entities.Business.update(businessId, {
+    business_hours: template.businessHours,
+    faq_content: faqText,
+  });
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedProgress, setSeedProgress] = useState('');
   const [business, setBusiness] = useState({
     name: '', industry: '', phone: '', email: '', timezone: 'Australia/Sydney', country: 'AU', description: ''
   });
@@ -38,14 +62,33 @@ export default function Onboarding() {
   });
   const [createdBusiness, setCreatedBusiness] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState(null);
-  const [serviceInput, setServiceInput] = useState({ name: '', duration_minutes: 60, price: 0 });
+  const [seedSummary, setSeedSummary] = useState(null);
 
   const handleCreateBusiness = async () => {
     if (!business.name || !business.industry) return toast.error('Please fill in required fields');
     setLoading(true);
+
     const user = await base44.auth.me();
     const biz = await base44.entities.Business.create({ ...business, owner_id: user.id, subscription_plan: 'trial' });
     setCreatedBusiness(biz);
+
+    // Auto-seed industry data
+    setSeeding(true);
+    setSeedProgress('Creating staff profiles…');
+    try {
+      const template = getTemplate(business.industry);
+      setSeedProgress('Setting up services & hours…');
+      await seedIndustryData(biz.id, business.industry);
+      setSeedSummary({
+        staff: template.staff.length,
+        services: template.services.length,
+        faq: template.faq.length,
+      });
+      setSeedProgress('Done!');
+    } catch (e) {
+      console.warn('Auto-seed failed', e);
+    }
+    setSeeding(false);
     setLoading(false);
     setStep(2);
   };
@@ -68,7 +111,6 @@ export default function Onboarding() {
       status: 'draft',
     };
 
-    // Create VAPI assistant via backend function
     let vapiId = null;
     try {
       const res = await base44.functions.invoke('createVapiAssistant', {
@@ -103,12 +145,6 @@ export default function Onboarding() {
     }
     setLoading(false);
     setStep(4);
-  };
-
-  const addService = () => {
-    if (!serviceInput.name) return;
-    setAgent(a => ({ ...a, services: [...a.services, { ...serviceInput }] }));
-    setServiceInput({ name: '', duration_minutes: 60, price: 0 });
   };
 
   return (
@@ -154,6 +190,18 @@ export default function Onboarding() {
                   <h2 className="text-2xl font-syne font-bold">Tell us about your business</h2>
                   <p className="text-muted-foreground text-sm mt-1">This helps us configure your AI agent correctly.</p>
                 </div>
+
+                {/* Industry auto-seed callout */}
+                {business.industry && (
+                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex items-start gap-3 p-3 rounded-xl bg-accent border border-primary/20">
+                    <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <p className="text-xs text-accent-foreground leading-relaxed">
+                      <strong>Auto-setup ready!</strong> We'll instantly create sample staff, services, and business hours tailored for a <span className="capitalize font-semibold">{business.industry}</span> business.
+                    </p>
+                  </motion.div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <Label>Business Name *</Label>
@@ -186,8 +234,20 @@ export default function Onboarding() {
                     <Textarea value={business.description} onChange={e => setBusiness(b => ({...b, description: e.target.value}))} placeholder="Briefly describe your services..." className="mt-1.5 h-20 resize-none" />
                   </div>
                 </div>
+
                 <Button onClick={handleCreateBusiness} disabled={loading} className="w-full gradient-primary border-0 text-white mt-2">
-                  {loading ? 'Saving...' : 'Continue'} <ChevronRight className="w-4 h-4 ml-1" />
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {seeding ? seedProgress : 'Creating workspace…'}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      {business.industry ? <Sparkles className="w-4 h-4" /> : null}
+                      Continue
+                      <ChevronRight className="w-4 h-4" />
+                    </span>
+                  )}
                 </Button>
               </div>
             )}
@@ -199,6 +259,17 @@ export default function Onboarding() {
                   <h2 className="text-2xl font-syne font-bold">Configure your AI agent</h2>
                   <p className="text-muted-foreground text-sm mt-1">Choose a voice and personality for your receptionist.</p>
                 </div>
+
+                {/* Seed summary banner */}
+                {seedSummary && (
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-success/10 border border-success/20">
+                    <CheckCircle className="w-4 h-4 text-success mt-0.5 shrink-0" />
+                    <p className="text-xs text-success leading-relaxed">
+                      <strong>Workspace ready!</strong> Created {seedSummary.staff} staff members, {seedSummary.services} services, business hours & {seedSummary.faq} FAQ entries tailored to your industry.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <Label>Agent Name</Label>
                   <Input value={agent.name} onChange={e => setAgent(a => ({...a, name: e.target.value}))} placeholder="e.g. Aria" className="mt-1.5" />
@@ -220,25 +291,15 @@ export default function Onboarding() {
                   <Textarea value={agent.greeting_message} onChange={e => setAgent(a => ({...a, greeting_message: e.target.value}))}
                     placeholder={`Hi! You've reached ${business.name}. I'm here to help!`} className="mt-1.5 h-20 resize-none" />
                 </div>
-                <div>
-                  <Label>Services Offered</Label>
-                  <div className="flex gap-2 mt-1.5">
-                    <Input value={serviceInput.name} onChange={e => setServiceInput(s => ({...s, name: e.target.value}))} placeholder="Service name" />
-                    <Input value={serviceInput.duration_minutes} onChange={e => setServiceInput(s => ({...s, duration_minutes: +e.target.value}))} type="number" placeholder="Min" className="w-20" />
-                    <Button type="button" variant="outline" onClick={addService}>Add</Button>
-                  </div>
-                  {agent.services.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {agent.services.map((s, i) => (
-                        <span key={i} className="px-3 py-1 bg-accent text-accent-foreground rounded-full text-xs font-medium">{s.name} · {s.duration_minutes}m</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={() => setStep(1)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-                  <Button onClick={handleCreateAgent} disabled={loading} className="flex-2 gradient-primary border-0 text-white flex-1">
-                    {loading ? 'Creating agent...' : 'Create Agent'} <ChevronRight className="w-4 h-4 ml-1" />
+                  <Button onClick={handleCreateAgent} disabled={loading} className="flex-1 gradient-primary border-0 text-white">
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Creating agent…
+                      </span>
+                    ) : <>Create Agent <ChevronRight className="w-4 h-4 ml-1" /></>}
                   </Button>
                 </div>
               </div>
@@ -260,9 +321,7 @@ export default function Onboarding() {
                   <div className="mt-3">
                     <Label>Country</Label>
                     <Select value={business.country} onValueChange={v => setBusiness(b => ({...b, country: v}))}>
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="AU">🇦🇺 Australia</SelectItem>
                         <SelectItem value="US">🇺🇸 United States</SelectItem>
@@ -276,7 +335,12 @@ export default function Onboarding() {
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(2)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
                   <Button onClick={handleProvisionPhone} disabled={loading} className="flex-1 gradient-primary border-0 text-white">
-                    {loading ? 'Provisioning...' : 'Get Phone Number'} <ChevronRight className="w-4 h-4 ml-1" />
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Provisioning…
+                      </span>
+                    ) : <>Get Phone Number <ChevronRight className="w-4 h-4 ml-1" /></>}
                   </Button>
                 </div>
                 <button onClick={() => { setStep(4); base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true }); }}
@@ -296,6 +360,22 @@ export default function Onboarding() {
                   <h2 className="text-2xl font-syne font-bold">You're all set! 🎉</h2>
                   <p className="text-muted-foreground text-sm mt-2">Your AI receptionist is ready to take calls.</p>
                 </div>
+
+                {seedSummary && (
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    {[
+                      { label: 'Staff', value: seedSummary.staff },
+                      { label: 'Services', value: seedSummary.services },
+                      { label: 'FAQs', value: seedSummary.faq },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="p-3 bg-accent rounded-xl">
+                        <p className="text-2xl font-syne font-bold text-primary">{value}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{label} added</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {phoneNumber && (
                   <div className="p-4 bg-success/10 border border-success/20 rounded-xl">
                     <p className="text-sm text-success font-medium">Your AI phone number</p>
