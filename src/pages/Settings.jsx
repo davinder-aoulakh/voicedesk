@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 
 const TIMEZONES = ['Australia/Sydney','Australia/Melbourne','Australia/Brisbane','Australia/Perth','Australia/Adelaide','America/New_York','America/Los_Angeles','Europe/London'];
-const INDUSTRIES = ['restaurant','salon','clinic','tradie','property','gym','spa','dental','legal','other'];
+const INDUSTRIES = ['restaurant','salon','clinic','tradie','property','gym','spa','dental','legal','removalist','other'];
 
 export default function Settings() {
   const { business, setBusiness } = useOutletContext() || {};

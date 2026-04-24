@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { getTemplate } from '@/lib/industryTemplates';
 
-const INDUSTRIES = ['restaurant','salon','clinic','tradie','property','gym','spa','dental','legal','other'];
+const INDUSTRIES = ['restaurant','salon','clinic','tradie','property','gym','spa','dental','legal','removalist','other'];
 const TIMEZONES = ['Australia/Sydney','Australia/Melbourne','Australia/Brisbane','Australia/Perth','Australia/Adelaide','America/New_York','America/Los_Angeles','Europe/London'];
 const VOICES = [
   { id: 'sarah', name: 'Sarah', desc: 'Warm & professional', provider: '11labs' },

@@ -332,6 +332,42 @@ export const INDUSTRY_TEMPLATES = {
       { q: 'Do you offer refunds?', a: 'Please speak with our team directly about our refund and cancellation policy for your specific situation.' },
     ],
   },
+  removalist: {
+    businessHours: {
+      monday:    { open: true, start: '07:00', end: '17:00' },
+      tuesday:   { open: true, start: '07:00', end: '17:00' },
+      wednesday: { open: true, start: '07:00', end: '17:00' },
+      thursday:  { open: true, start: '07:00', end: '17:00' },
+      friday:    { open: true, start: '07:00', end: '17:00' },
+      saturday:  { open: true, start: '08:00', end: '13:00' },
+      sunday:    { open: false, start: '09:00', end: '17:00' },
+    },
+    staff: [
+      { name: 'Daniel Cooper',  role: 'Operations Manager',          color: '#F59E0B' },
+      { name: 'Liam Thompson',  role: 'Senior Removalist',           color: '#8B5CF6' },
+      { name: 'Jacob Nguyen',   role: 'Removalist',                  color: '#10B981' },
+      { name: 'Olivia Harris',  role: 'Customer Service Coordinator', color: '#3B82F6' },
+      { name: 'Sophie Martin',  role: 'Removalist',                  color: '#EC4899' },
+    ],
+    services: [
+      { name: '1-2 Bedroom Apartment Move',  category: 'Residential Moves',       duration_minutes: 240, price: 10 },
+      { name: '3-4 Bedroom House Move',      category: 'Residential Moves',       duration_minutes: 420, price: 10 },
+      { name: 'After-Hours Office Move',     category: 'Office & Commercial Moves', duration_minutes: 480, price: 10 },
+      { name: 'Full Packing Service',        category: 'Packing & Unpacking',     duration_minutes: 360, price: 10 },
+      { name: 'Piano Move',                  category: 'Specialty Services',      duration_minutes: 180, price: 10 },
+      { name: 'Small Office Relocation',     category: 'Office & Commercial Moves', duration_minutes: 360, price: 10 },
+      { name: 'Unpacking & Setup',           category: 'Packing & Unpacking',     duration_minutes: 240, price: 10 },
+      { name: 'Disassembly & Reassembly Only', category: 'Specialty Services',    duration_minutes: 120, price: 10 },
+    ],
+    faq: [
+      { q: 'Are my belongings insured during the move?', a: 'Yes, all moves include basic transit insurance. We also offer comprehensive coverage for high-value items — just ask us for details when booking.' },
+      { q: 'Do you provide packing materials?', a: 'Absolutely! We supply boxes, tape, bubble wrap, and protective blankets. You can add a full packing service to your booking or purchase materials separately.' },
+      { q: 'How do I get a quote?', a: 'I can take down your move details right now — number of bedrooms, pickup and delivery addresses, and any specialty items — and our team will confirm a fixed-price quote within the hour.' },
+      { q: 'How much notice do I need to book?', a: 'We recommend booking at least 3–5 business days in advance, especially for weekend moves. Last-minute bookings may be available subject to availability.' },
+      { q: 'Can you move pianos, safes, or other heavy items?', a: 'Yes, we have specialist equipment and trained staff for pianos, safes, pool tables, and other oversized or fragile items. Please mention these when booking so we can allocate the right crew.' },
+    ],
+    customerTags: ['Commercial Client', 'One-Off Move', 'Repeat Residential', 'Interstate Move', 'Local Move'],
+  },
 };
 
 export function getTemplate(industry) {
