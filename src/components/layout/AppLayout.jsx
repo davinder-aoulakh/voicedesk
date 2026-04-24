@@ -29,7 +29,7 @@ export default function AppLayout() {
 
       {/* Sidebar - desktop always visible, mobile drawer */}
       <div className={`
-        fixed lg:relative inset-y-0 left-0 z-30 lg:z-auto
+        fixed lg:relative inset-y-0 left-0 z-30 lg:z-auto h-full
         transform transition-transform duration-300
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
