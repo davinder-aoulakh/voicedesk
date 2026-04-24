@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import Services from './pages/Services';
 import Staff from './pages/Staff';
 import BusinessHours from './pages/BusinessHours';
+import Customers from './pages/Customers';
 import AppLayout from './components/layout/AppLayout';
 
 const AuthenticatedApp = () => {
@@ -50,6 +51,7 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/calls" element={<CallLogs />} />
+        <Route path="/customers" element={<Customers />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/agent" element={<AgentSettings />} />

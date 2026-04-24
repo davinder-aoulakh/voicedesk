@@ -1,0 +1,56 @@
+{
+  "name": "Customer",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "total_bookings": {
+      "type": "number",
+      "default": 0
+    },
+    "total_calls": {
+      "type": "number",
+      "default": 0
+    },
+    "total_spent": {
+      "type": "number",
+      "default": 0
+    },
+    "last_contact": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "ai_agent",
+        "manual",
+        "online"
+      ],
+      "default": "ai_agent"
+    }
+  },
+  "required": [
+    "business_id",
+    "name"
+  ]
+}
