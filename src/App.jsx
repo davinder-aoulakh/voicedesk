@@ -20,6 +20,7 @@ import Services from './pages/Services';
 import Staff from './pages/Staff';
 import BusinessHours from './pages/BusinessHours';
 import Customers from './pages/Customers';
+import KnowledgeBase from './pages/KnowledgeBase';
 import AppLayout from './components/layout/AppLayout';
 
 const AuthenticatedApp = () => {
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
         <Route path="/services" element={<Services />} />
         <Route path="/staff" element={<Staff />} />
         <Route path="/hours" element={<BusinessHours />} />
+        <Route path="/knowledge" element={<KnowledgeBase />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
 

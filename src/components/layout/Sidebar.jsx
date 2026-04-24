@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Phone, Calendar, Bot, BarChart3, Settings, Zap, LogOut, ChevronRight,
-  Tag, Users, Clock, Contact
+  Tag, Users, Clock, Contact, BookOpen
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Customers', icon: Contact, path: '/customers' },
   { label: 'Analytics', icon: BarChart3, path: '/analytics' },
   { type: 'divider', label: 'Setup' },
+  { label: 'Knowledge Base', icon: BookOpen, path: '/knowledge' },
   { label: 'Services', icon: Tag, path: '/services' },
   { label: 'Staff', icon: Users, path: '/staff' },
   { label: 'Business Hours', icon: Clock, path: '/hours' },
