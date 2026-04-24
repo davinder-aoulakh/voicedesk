@@ -1,0 +1,50 @@
+{
+  "name": "Service",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 60
+    },
+    "price": {
+      "type": "number",
+      "default": 0
+    },
+    "currency": {
+      "type": "string",
+      "default": "AUD"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "buffer_minutes": {
+      "type": "number",
+      "default": 0,
+      "description": "Buffer time after service"
+    },
+    "max_bookings_per_slot": {
+      "type": "number",
+      "default": 1
+    },
+    "color": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "business_id",
+    "name"
+  ]
+}

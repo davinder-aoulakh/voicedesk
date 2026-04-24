@@ -1,0 +1,50 @@
+{
+  "name": "Staff",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "assigned_services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of service names this staff member performs"
+    },
+    "working_hours": {
+      "type": "object",
+      "description": "Per-day working hours override (if different from business hours)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "color": {
+      "type": "string",
+      "description": "Calendar color for this staff member"
+    }
+  },
+  "required": [
+    "business_id",
+    "name"
+  ]
+}

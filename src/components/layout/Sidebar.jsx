@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, Phone, Calendar, Bot, BarChart3, Settings, Zap, LogOut, ChevronRight
+  LayoutDashboard, Phone, Calendar, Bot, BarChart3, Settings, Zap, LogOut, ChevronRight,
+  Tag, Users, Clock
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
@@ -11,6 +12,10 @@ const navItems = [
   { label: 'Call Logs', icon: Phone, path: '/calls' },
   { label: 'Bookings', icon: Calendar, path: '/bookings' },
   { label: 'Analytics', icon: BarChart3, path: '/analytics' },
+  { type: 'divider', label: 'Setup' },
+  { label: 'Services', icon: Tag, path: '/services' },
+  { label: 'Staff', icon: Users, path: '/staff' },
+  { label: 'Business Hours', icon: Clock, path: '/hours' },
   { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
@@ -25,7 +30,7 @@ export default function Sidebar({ business }) {
           <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
-          <span className="font-syne font-700 text-lg text-sidebar-accent-foreground">VoiceDesk</span>
+          <span className="font-syne font-bold text-lg text-sidebar-accent-foreground">VoiceDesk</span>
         </div>
       </div>
 
@@ -42,15 +47,23 @@ export default function Sidebar({ business }) {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 mt-4 space-y-0.5">
-        {navItems.map(({ label, icon: Icon, path }) => {
+      <nav className="flex-1 px-3 mt-4 space-y-0.5 overflow-y-auto">
+        {navItems.map((item, idx) => {
+          if (item.type === 'divider') {
+            return (
+              <div key={idx} className="pt-4 pb-1 px-3">
+                <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-widest">{item.label}</p>
+              </div>
+            );
+          }
+          const { label, icon: Icon, path } = item;
           const active = location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
           return (
             <Link
               key={path}
               to={path}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
                 active
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'

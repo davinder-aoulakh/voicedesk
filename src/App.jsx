@@ -16,6 +16,9 @@ import Bookings from './pages/Bookings';
 import Analytics from './pages/Analytics';
 import AgentSettings from './pages/AgentSettings';
 import Settings from './pages/Settings';
+import Services from './pages/Services';
+import Staff from './pages/Staff';
+import BusinessHours from './pages/BusinessHours';
 import AppLayout from './components/layout/AppLayout';
 
 const AuthenticatedApp = () => {
@@ -50,6 +53,9 @@ const AuthenticatedApp = () => {
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/agent" element={<AgentSettings />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/staff" element={<Staff />} />
+        <Route path="/hours" element={<BusinessHours />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
 
