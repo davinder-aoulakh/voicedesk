@@ -41,6 +41,50 @@
     },
     "color": {
       "type": "string"
+    },
+    "location_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Location IDs where this service is offered"
+    },
+    "available_to_all_staff": {
+      "type": "boolean",
+      "default": true,
+      "description": "When false, only specific staff_ids can perform this service"
+    },
+    "service_staff_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Staff IDs allowed to perform this service when available_to_all_staff is false"
+    },
+    "add_ons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "percentage"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "description": "Optional or required add-ons for this service"
     }
   },
   "required": [
