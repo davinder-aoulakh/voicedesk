@@ -72,6 +72,17 @@ export default function Onboarding() {
     const biz = await base44.entities.Business.create({ ...business, owner_id: user.id, subscription_plan: 'trial' });
     setCreatedBusiness(biz);
 
+    // Create initial primary Location from business details
+    await base44.entities.Location.create({
+      business_id: biz.id,
+      name: business.name,
+      address: business.address || '',
+      country: business.country || 'AU',
+      timezone: business.timezone,
+      phone_number: business.phone || '',
+      is_primary: true,
+    });
+
     // Auto-seed industry data
     setSeeding(true);
     setSeedProgress('Creating staff profiles…');

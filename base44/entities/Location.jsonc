@@ -1,0 +1,56 @@
+{
+  "name": "Location",
+  "type": "object",
+  "properties": {
+    "business_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "e.g. '59 King David Boulevard'"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "postcode": {
+      "type": "string"
+    },
+    "phone_number": {
+      "type": "string",
+      "description": "Provisioned Twilio number for this location"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "business_hours": {
+      "type": "object",
+      "description": "Per-day open/close times"
+    },
+    "vapi_phone_number_id": {
+      "type": "string"
+    },
+    "twilio_phone_sid": {
+      "type": "string"
+    },
+    "twilio_phone_number": {
+      "type": "string"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "business_id",
+    "name"
+  ]
+}
