@@ -72,6 +72,89 @@
     },
     "after_hours_message": {
       "type": "string"
+    },
+    "personality_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Up to 3 personality traits, e.g. Friendly, Professional, Helpful"
+    },
+    "tone_of_voice": {
+      "type": "string",
+      "description": "e.g. Warm, Authoritative, Playful"
+    },
+    "response_style": {
+      "type": "string",
+      "enum": [
+        "Concise",
+        "Balanced",
+        "Detailed"
+      ],
+      "default": "Balanced"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.5,
+      "description": "LLM creativity 0.0\u20131.0"
+    },
+    "custom_instructions": {
+      "type": "string",
+      "description": "Additional behaviour guidelines for the agent"
+    },
+    "return_customer_greeting": {
+      "type": "string",
+      "description": "Greeting message for returning callers"
+    },
+    "recording_disclosure": {
+      "type": "string",
+      "description": "Legal notice read to callers about call recording"
+    },
+    "voice_speed": {
+      "type": "number",
+      "default": 1.0,
+      "description": "Playback speed multiplier"
+    },
+    "turn_timeout_seconds": {
+      "type": "number",
+      "default": 5,
+      "description": "Seconds before agent takes its turn"
+    },
+    "silence_end_call_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "silence_timeout_seconds": {
+      "type": "number",
+      "default": 30,
+      "description": "Seconds of silence before ending the call"
+    },
+    "max_duration_seconds": {
+      "type": "number",
+      "default": 300,
+      "description": "Maximum call duration in seconds"
+    },
+    "custom_pronunciations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "phonetic": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Custom word pronunciation overrides"
+    },
+    "enabled_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tool names that are toggled on for this agent"
     }
   },
   "required": [
