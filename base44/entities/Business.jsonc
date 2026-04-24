@@ -94,6 +94,80 @@
     "owner_id": {
       "type": "string",
       "description": "User ID of the business owner"
+    },
+    "setup_steps": {
+      "type": "object",
+      "description": "Onboarding setup step completion flags",
+      "properties": {
+        "business_info": {
+          "type": "boolean",
+          "default": false
+        },
+        "location": {
+          "type": "boolean",
+          "default": false
+        },
+        "availability": {
+          "type": "boolean",
+          "default": false
+        },
+        "resources": {
+          "type": "boolean",
+          "default": false
+        },
+        "agent": {
+          "type": "boolean",
+          "default": false
+        },
+        "tools": {
+          "type": "boolean",
+          "default": false
+        },
+        "knowledge": {
+          "type": "boolean",
+          "default": false
+        },
+        "test_call": {
+          "type": "boolean",
+          "default": false
+        },
+        "booking_page": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "stripe_customer_id": {
+      "type": "string"
+    },
+    "tagline": {
+      "type": "string",
+      "description": "Short memorable business phrase"
+    },
+    "philosophy": {
+      "type": "string",
+      "description": "Business values / mission statement"
+    },
+    "trading_name": {
+      "type": "string",
+      "description": "Display / trading name"
+    },
+    "legal_name": {
+      "type": "string",
+      "description": "Registered company/legal name"
+    },
+    "instagram": {
+      "type": "string"
+    },
+    "facebook": {
+      "type": "string"
+    },
+    "privacy_policy_url": {
+      "type": "string"
+    },
+    "primary_color": {
+      "type": "string",
+      "description": "Hex colour for branding, e.g. #6C3EFF"
     }
   },
   "required": [
