@@ -23,6 +23,22 @@
     "service": {
       "type": "string"
     },
+    "service_id": {
+      "type": "string",
+      "description": "Reference to Service entity ID"
+    },
+    "staff_id": {
+      "type": "string",
+      "description": "Reference to Staff entity ID of the assigned staff member"
+    },
+    "location_id": {
+      "type": "string",
+      "description": "Reference to Location entity"
+    },
+    "table_id": {
+      "type": "string",
+      "description": "For restaurant businesses, reference to a table"
+    },
     "service_duration_minutes": {
       "type": "number"
     },

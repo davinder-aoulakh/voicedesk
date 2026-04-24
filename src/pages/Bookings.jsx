@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid } from 'lucide-react';
@@ -24,8 +24,23 @@ function BookingModal({ booking, businessId, onClose, onSave }) {
   const isNew = !booking;
   const [form, setForm] = useState(booking || {
     customer_name: '', customer_phone: '', customer_email: '', service: '',
-    scheduled_at: '', status: 'pending', notes: '', source: 'manual', business_id: businessId,
+    service_id: '', staff_id: '', scheduled_at: '', status: 'pending', notes: '', source: 'manual', business_id: businessId,
   });
+  const [services, setServices] = useState([]);
+  const [staff, setStaff] = useState([]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    Promise.all([
+      base44.entities.Service.filter({ business_id: businessId, is_active: true }),
+      base44.entities.Staff.filter({ business_id: businessId, is_active: true }),
+    ]).then(([svcs, stf]) => { setServices(svcs); setStaff(stf); });
+  }, [businessId]);
+
+  const handleServiceChange = (serviceId) => {
+    const svc = services.find(s => s.id === serviceId);
+    setForm(f => ({ ...f, service_id: serviceId, service: svc?.name || '' }));
+  };
 
   const handleSave = async () => {
     if (!form.customer_name) return toast.error('Customer name is required');
@@ -60,7 +75,21 @@ function BookingModal({ booking, businessId, onClose, onSave }) {
             </div>
             <div>
               <Label>Service</Label>
-              <Input value={form.service || ''} onChange={e => setForm(f => ({...f, service: e.target.value}))} className="mt-1.5" placeholder="e.g. Haircut" />
+              <Select value={form.service_id || ''} onValueChange={handleServiceChange}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select service" /></SelectTrigger>
+                <SelectContent>
+                  {services.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Staff</Label>
+              <Select value={form.staff_id || ''} onValueChange={v => setForm(f => ({...f, staff_id: v}))}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select staff" /></SelectTrigger>
+                <SelectContent>
+                  {staff.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Status</Label>
