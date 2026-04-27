@@ -99,6 +99,22 @@ async function handleCreateBooking(tc, base44, business, agent, call) {
     }
   }
 
+  // Send confirmation SMS (fire-and-forget, don't fail on SMS error)
+  if (booking.customer_phone && business?.twilio_phone_number) {
+    const dateStr2 = scheduledAt
+      ? new Date(scheduledAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'your requested time';
+    const serviceName = args.service_requested || args.service || 'your appointment';
+    const smsBody = `Hi ${args.customer_name}, your booking for ${serviceName} on ${dateStr2} with ${business.name} is confirmed! Reply STOP to unsubscribe.`;
+    await sendSms(
+      Deno.env.get('TWILIO_ACCOUNT_SID'),
+      Deno.env.get('TWILIO_AUTH_TOKEN'),
+      booking.customer_phone,
+      business.twilio_phone_number,
+      smsBody,
+    ).catch(() => {});
+  }
+
   const dateStr = scheduledAt
     ? new Date(scheduledAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })
     : 'the requested time';

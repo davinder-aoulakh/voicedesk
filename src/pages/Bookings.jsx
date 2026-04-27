@@ -44,10 +44,17 @@ function BookingModal({ booking, businessId, onClose, onSave }) {
 
   const handleSave = async () => {
     if (!form.customer_name) return toast.error('Customer name is required');
+    let savedBooking;
     if (isNew) {
-      await base44.entities.Booking.create(form);
+      savedBooking = await base44.entities.Booking.create(form);
     } else {
       await base44.entities.Booking.update(booking.id, form);
+      savedBooking = { id: booking.id, ...form };
+    }
+    // Send confirmation SMS if status is confirmed and there's a phone
+    const isConfirmed = (form.status === 'confirmed') || isNew;
+    if (isConfirmed && form.customer_phone && savedBooking?.id) {
+      base44.functions.invoke('sendBookingConfirmation', { booking_id: savedBooking.id }).catch(() => {});
     }
     toast.success(isNew ? 'Booking created' : 'Booking updated');
     onSave();
@@ -155,6 +162,10 @@ export default function Bookings() {
   const updateStatus = async (id, status) => {
     await base44.entities.Booking.update(id, { status });
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+    // Send confirmation SMS when manually confirming
+    if (status === 'confirmed') {
+      base44.functions.invoke('sendBookingConfirmation', { booking_id: id }).catch(() => {});
+    }
     toast.success('Booking updated');
   };
 
