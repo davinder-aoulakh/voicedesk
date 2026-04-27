@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/AuthContext';
 const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Bookings',  icon: Calendar,        path: '/bookings' },
+  { label: 'Call Logs', icon: Phone,           path: '/calls' },
 
   { type: 'group', label: 'Business Operations' },
   { label: 'Availability', icon: Clock,    path: '/availability' },
