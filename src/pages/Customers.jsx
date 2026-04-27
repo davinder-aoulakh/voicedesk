@@ -1,32 +1,28 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Users, Search, Plus, Phone, Mail, Calendar, MessageSquare, ChevronRight, Pencil, X, Check } from 'lucide-react';
+import { Users, Search, Plus, Pencil, Trash2, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { format } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
+import { formatDistanceToNow } from 'date-fns';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import CustomerDetail from '@/components/customers/CustomerDetail';
+import CustomerSlideOver from '@/components/customers/CustomerSlideOver';
+import CustomerTagsTab from '@/components/customers/CustomerTagsTab';
 
-function CustomerModal({ customer, businessId, onClose, onSave }) {
+const TABS = ['Customers', 'Customer Tags'];
+const AVATAR_COLORS = ['#8B5CF6','#3B82F6','#10B981','#F59E0B','#EF4444','#EC4899','#14B8A6'];
+const colorFor = (name) => AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+const initials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+function CustomerFormModal({ customer, businessId, onClose, onSave }) {
   const isNew = !customer;
   const [form, setForm] = useState(customer || {
-    name: '', phone: '', email: '', notes: '', tags: [], business_id: businessId,
+    name: '', phone: '', email: '', notes: '', business_id: businessId,
   });
-  const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const addTag = () => {
-    const t = tagInput.trim();
-    if (!t || form.tags?.includes(t)) return;
-    setForm(f => ({ ...f, tags: [...(f.tags || []), t] }));
-    setTagInput('');
-  };
-
-  const removeTag = (tag) => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }));
 
   const handleSave = async () => {
     if (!form.name) return toast.error('Name is required');
@@ -66,25 +62,6 @@ function CustomerModal({ customer, businessId, onClose, onSave }) {
             <Label>Notes</Label>
             <Textarea value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="mt-1.5 h-20 resize-none" placeholder="Any notes about this customer..." />
           </div>
-          <div>
-            <Label>Tags</Label>
-            <div className="flex gap-2 mt-1.5">
-              <Input value={tagInput} onChange={e => setTagInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                placeholder="Add tag..." />
-              <Button type="button" variant="outline" size="sm" onClick={addTag}>Add</Button>
-            </div>
-            {form.tags?.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {form.tags.map(tag => (
-                  <span key={tag} className="flex items-center gap-1 px-2.5 py-1 bg-accent text-accent-foreground rounded-full text-xs font-medium">
-                    {tag}
-                    <button onClick={() => removeTag(tag)}><X className="w-3 h-3" /></button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -98,153 +75,262 @@ function CustomerModal({ customer, businessId, onClose, onSave }) {
 }
 
 export default function Customers() {
+  const [tab, setTab]           = useState('Customers');
   const [customers, setCustomers] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [allTags, setAllTags]   = useState([]);
   const [businessId, setBusinessId] = useState(null);
-  const [showNew, setShowNew] = useState(false);
-  const [editCustomer, setEditCustomer] = useState(null);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [filterTag, setFilterTag] = useState(null);
+  const [filterSource, setFilterSource] = useState(null);
+  const [showNew, setShowNew]   = useState(false);
+  const [slideOver, setSlideOver] = useState(null); // customer object
+  const [addTagOpen, setAddTagOpen] = useState(false);
 
   const load = async () => {
     const user = await base44.auth.me();
     const businesses = await base44.entities.Business.filter({ owner_id: user.id });
     if (!businesses.length) return;
-    setBusinessId(businesses[0].id);
-    const data = await base44.entities.Customer.filter({ business_id: businesses[0].id }, '-created_date', 200);
-    setCustomers(data);
-    setFiltered(data);
+    const biz = businesses[0];
+    setBusinessId(biz.id);
+    const [custData, tagData] = await Promise.all([
+      base44.entities.Customer.filter({ business_id: biz.id }, '-created_date', 200),
+      base44.entities.CustomerTag.filter({ business_id: biz.id }),
+    ]);
+    setCustomers(custData);
+    setAllTags(tagData);
     setLoading(false);
+  };
+
+  const loadTags = async () => {
+    if (!businessId) return;
+    const tagData = await base44.entities.CustomerTag.filter({ business_id: businessId });
+    setAllTags(tagData);
   };
 
   useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    if (!search) { setFiltered(customers); return; }
-    const q = search.toLowerCase();
-    setFiltered(customers.filter(c =>
-      c.name?.toLowerCase().includes(q) ||
-      c.phone?.includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.tags?.some(t => t.toLowerCase().includes(q))
-    ));
-  }, [search, customers]);
-
   const handleDelete = async (id) => {
     await base44.entities.Customer.delete(id);
     setCustomers(prev => prev.filter(c => c.id !== id));
-    if (selectedCustomer?.id === id) setSelectedCustomer(null);
     toast.success('Customer removed');
   };
 
-  const initials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  const filtered = customers.filter(c => {
+    const q = search.toLowerCase();
+    const matchSearch = !search || c.name?.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q);
+    const matchTag = !filterTag || (c.customer_tag_ids || []).includes(filterTag);
+    const matchSource = !filterSource || c.source === filterSource;
+    return matchSearch && matchTag && matchSource;
+  });
 
-  const COLORS = ['#8B5CF6','#3B82F6','#10B981','#F59E0B','#EF4444','#EC4899','#14B8A6'];
-  const colorFor = (name) => COLORS[(name?.charCodeAt(0) || 0) % COLORS.length];
+  const uniqueSources = [...new Set(customers.map(c => c.source).filter(Boolean))];
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* List panel */}
-      <div className={`flex flex-col border-r border-border bg-card transition-all ${selectedCustomer ? 'w-80 shrink-0' : 'flex-1'}`}>
-        {/* Header */}
-        <div className="p-5 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-syne font-bold">Customers</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">{customers.length} total</p>
-            </div>
-            <Button onClick={() => setShowNew(true)} size="sm" className="gradient-primary border-0 text-white shadow-md shadow-primary/20">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Add
-            </Button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, phone, tag…" className="pl-8 h-8 text-sm" />
-          </div>
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-syne font-bold">Customer Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage your customers and their tags</p>
         </div>
-
-        {/* Customer list */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="space-y-0">
-              {Array(6).fill(0).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-border animate-pulse">
-                  <div className="w-9 h-9 rounded-full bg-secondary shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 bg-secondary rounded w-32" />
-                    <div className="h-2.5 bg-secondary rounded w-24" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center px-6">
-              <Users className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">{search ? 'No customers match your search' : 'No customers yet'}</p>
-              {!search && (
-                <Button onClick={() => setShowNew(true)} size="sm" variant="outline" className="mt-3">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add first customer
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div>
-              {filtered.map((customer, i) => {
-                const isSelected = selectedCustomer?.id === customer.id;
-                return (
-                  <motion.button key={customer.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                    onClick={() => setSelectedCustomer(isSelected ? null : customer)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-secondary/50'}`}>
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                      style={{ background: colorFor(customer.name) }}>
-                      {initials(customer.name)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{customer.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{customer.phone || customer.email || '—'}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {customer.total_bookings > 0 && (
-                        <span className="text-xs text-muted-foreground">{customer.total_bookings} booking{customer.total_bookings !== 1 ? 's' : ''}</span>
-                      )}
-                      <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <Button
+          onClick={() => tab === 'Customer Tags' ? setAddTagOpen(true) : setShowNew(true)}
+          className="gradient-primary border-0 text-white gap-1.5">
+          <Plus className="w-4 h-4" />
+          {tab === 'Customer Tags' ? 'Add Customer Tag' : 'Add Customer'}
+        </Button>
       </div>
 
-      {/* Detail panel */}
-      <AnimatePresence>
-        {selectedCustomer && (
-          <motion.div key={selectedCustomer.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-            className="flex-1 overflow-y-auto bg-background">
-            <CustomerDetail
-              customer={selectedCustomer}
-              colorFor={colorFor}
-              initials={initials}
-              onEdit={() => setEditCustomer(selectedCustomer)}
-              onDelete={() => handleDelete(selectedCustomer.id)}
-              onClose={() => setSelectedCustomer(null)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Tabs */}
+      <div className="flex border-b border-border mb-6">
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}>
+            {t}
+          </button>
+        ))}
+      </div>
 
-      {/* Modals */}
-      {showNew && <CustomerModal businessId={businessId} onClose={() => setShowNew(false)} onSave={() => { setShowNew(false); load(); }} />}
-      {editCustomer && (
-        <CustomerModal customer={editCustomer} businessId={businessId}
-          onClose={() => setEditCustomer(null)}
-          onSave={() => {
-            setEditCustomer(null);
-            setSelectedCustomer(null);
-            load();
-          }} />
+      {/* Customers Tab */}
+      {tab === 'Customers' && (
+        <div className="space-y-4">
+          {!loading && customers.length === 0 ? (
+            /* Empty state */
+            <div className="border-2 border-dashed border-border rounded-2xl p-16 flex flex-col items-center justify-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mb-4">
+                <Users className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="font-syne font-bold text-lg mb-1">No customers yet</h3>
+              <p className="text-muted-foreground text-sm mb-5">Get started by adding your first customer</p>
+              <Button onClick={() => setShowNew(true)} className="gradient-primary border-0 text-white gap-1.5">
+                <Plus className="w-4 h-4" /> Add Your First Customer
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Search + filters */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-sm text-muted-foreground shrink-0">
+                  Showing {filtered.length} customer{filtered.length !== 1 ? 's' : ''}
+                </p>
+                <div className="relative flex-1 min-w-48">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search customers by name, phone, or email..."
+                    className="pl-9 w-full" />
+                </div>
+              </div>
+
+              {/* Filter chips */}
+              {(allTags.length > 0 || uniqueSources.length > 0) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Filter:</span>
+                  {allTags.map(tag => (
+                    <button key={tag.id}
+                      onClick={() => setFilterTag(filterTag === tag.id ? null : tag.id)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                        filterTag === tag.id ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:border-primary/50'
+                      }`}
+                      style={filterTag === tag.id ? { background: tag.color } : {}}>
+                      {tag.name}
+                    </button>
+                  ))}
+                  {uniqueSources.map(src => (
+                    <button key={src}
+                      onClick={() => setFilterSource(filterSource === src ? null : src)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border capitalize ${
+                        filterSource === src ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:border-primary/50'
+                      }`}>
+                      {src}
+                    </button>
+                  ))}
+                  {(filterTag || filterSource) && (
+                    <button onClick={() => { setFilterTag(null); setFilterSource(null); }}
+                      className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-full border border-border">
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {loading ? (
+                <div className="space-y-2">
+                  {Array(5).fill(0).map((_, i) => <div key={i} className="h-16 bg-card border border-border rounded-xl animate-pulse" />)}
+                </div>
+              ) : filtered.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10 text-sm">No customers match your search or filters.</p>
+              ) : (
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-secondary/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
+                    <span>Customer</span>
+                    <span>Phone</span>
+                    <span>Tags</span>
+                    <span>Bookings</span>
+                    <span>Last Seen</span>
+                    <span>Actions</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {filtered.map((customer, i) => {
+                      const custTags = allTags.filter(t => (customer.customer_tag_ids || []).includes(t.id));
+                      const lastSeen = customer.last_contact
+                        ? formatDistanceToNow(new Date(customer.last_contact), { addSuffix: true })
+                        : customer.updated_date
+                          ? formatDistanceToNow(new Date(customer.updated_date), { addSuffix: true })
+                          : '—';
+                      return (
+                        <motion.div key={customer.id}
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                          className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3.5 items-center hover:bg-secondary/20 transition-colors">
+                          {/* Name + Avatar */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                              style={{ background: colorFor(customer.name) }}>
+                              {initials(customer.name)}
+                            </div>
+                            <span className="font-semibold text-sm truncate">{customer.name}</span>
+                          </div>
+                          {/* Phone */}
+                          <div className="text-sm text-muted-foreground truncate">
+                            {customer.phone ? `📞 ${customer.phone}` : customer.email || '—'}
+                          </div>
+                          {/* Tags */}
+                          <div className="flex flex-wrap gap-1">
+                            {custTags.slice(0, 2).map(tag => (
+                              <span key={tag.id} className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                                style={{ background: tag.color || '#8B5CF6' }}>
+                                {tag.name}
+                              </span>
+                            ))}
+                            {custTags.length > 2 && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
+                                +{custTags.length - 2}
+                              </span>
+                            )}
+                          </div>
+                          {/* Bookings */}
+                          <div className="text-sm text-muted-foreground">{customer.total_bookings || 0}</div>
+                          {/* Last Seen */}
+                          <div className="text-xs text-muted-foreground">{lastSeen}</div>
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setSlideOver(customer)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                              <Pencil className="w-4 h-4 text-blue-500" />
+                            </button>
+                            <button onClick={() => handleDelete(customer.id)}
+                              className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Delete">
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Customer Tags Tab */}
+      {tab === 'Customer Tags' && (
+        <CustomerTagsTab
+          tags={allTags}
+          businessId={businessId}
+          onRefresh={() => { loadTags(); load(); }}
+          showForm={addTagOpen}
+          onFormClose={() => setAddTagOpen(false)}
+        />
+      )}
+
+      {/* Add Customer Modal */}
+      {showNew && (
+        <CustomerFormModal
+          businessId={businessId}
+          onClose={() => setShowNew(false)}
+          onSave={() => { setShowNew(false); load(); }}
+        />
+      )}
+
+      {/* Customer Slide-Over */}
+      {slideOver && (
+        <CustomerSlideOver
+          customer={slideOver}
+          allTags={allTags}
+          businessId={businessId}
+          onClose={() => setSlideOver(null)}
+          onSave={() => { setSlideOver(null); load(); }}
+          onQuickRebook={(c) => {
+            setSlideOver(null);
+            // Navigate to bookings with pre-fill — for now just toast
+            toast.info(`Quick Rebook for ${c.name} — open Bookings tab to create`);
+          }}
+        />
       )}
     </div>
   );

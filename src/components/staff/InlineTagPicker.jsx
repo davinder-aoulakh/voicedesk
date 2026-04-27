@@ -2,10 +2,31 @@ import { useState, useRef, useEffect } from 'react';
 import { Search, Check, Plus, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { base44 } from '@/api/base44Client';
 
 const PRESET_COLORS = ['#8B5CF6','#10B981','#F59E0B','#EF4444','#3B82F6','#EC4899','#14B8A6','#F97316'];
 
-export default function InlineTagPicker({ tags, selectedIds, onSave, onCreateTag, onEditTag, onDeleteTag, placeholder = 'Search tags...', buttonLabel }) {
+/**
+ * InlineTagPicker — reusable multi-select tag picker.
+ *
+ * Usage modes:
+ *   1. Controlled external callbacks: pass onSave / onCreateTag / onDeleteTag
+ *   2. Self-managed via entityName + businessId + onChange:
+ *      Automatically calls base44.entities[entityName].create/delete and calls onChange(newIds)
+ */
+export default function InlineTagPicker({
+  tags: tagsProp,
+  selectedIds,
+  onSave,
+  onChange,        // simpler callback: receives new id array immediately on toggle
+  onCreateTag,
+  onEditTag,
+  onDeleteTag,
+  entityName,      // e.g. 'CustomerTag' — used for auto-create/delete when no callbacks provided
+  businessId,
+  placeholder = 'Search tags...',
+  buttonLabel,
+}) {
   const [open, setOpen]       = useState(false);
   const [search, setSearch]   = useState('');
   const [draft, setDraft]     = useState(selectedIds || []);
@@ -32,14 +53,24 @@ export default function InlineTagPicker({ tags, selectedIds, onSave, onCreateTag
   };
 
   const handleSave = () => {
-    onSave(draft);
+    if (onSave) onSave(draft);
+    if (onChange) onChange(draft);
     setOpen(false);
     setSearch('');
   };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    await onCreateTag({ name: newName.trim(), color: newColor });
+    if (onCreateTag) {
+      await onCreateTag({ name: newName.trim(), color: newColor });
+    } else if (entityName && businessId) {
+      const created = await base44.entities[entityName].create({ name: newName.trim(), color: newColor, business_id: businessId });
+      // add to tags list locally
+      tagsProp.push(created); // mutate is fine here since parent re-renders via onChange
+      const newIds = [...draft, created.id];
+      setDraft(newIds);
+      onChange?.(newIds);
+    }
     setCreating(false);
     setNewName('');
     setNewColor(PRESET_COLORS[0]);
@@ -47,8 +78,13 @@ export default function InlineTagPicker({ tags, selectedIds, onSave, onCreateTag
 
   const handleDelete = async (e, tag) => {
     e.stopPropagation();
-    await onDeleteTag(tag.id);
+    if (onDeleteTag) {
+      await onDeleteTag(tag.id);
+    } else if (entityName) {
+      await base44.entities[entityName].delete(tag.id);
+    }
     setDraft(d => d.filter(x => x !== tag.id));
+    onChange?.(draft.filter(x => x !== tag.id));
     setMenuOpen(null);
   };
 
