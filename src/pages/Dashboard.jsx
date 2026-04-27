@@ -5,6 +5,7 @@ import { Phone, Calendar, TrendingUp, Clock, Bot, ArrowUpRight, ChevronRight, Al
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
+import SetupGuide from '@/components/dashboard/SetupGuide';
 
 function StatCard({ label, value, sub, icon: Icon, trend, color = 'primary', delay = 0 }) {
   return (
@@ -84,6 +85,9 @@ export default function Dashboard() {
         </h1>
         <p className="text-muted-foreground mt-1">Here's what's happening with your AI agent today.</p>
       </div>
+
+      {/* Setup Guide */}
+      {business && <SetupGuide business={business} />}
 
       {/* Onboarding nudge */}
       {!hasAgent && !loading && (
