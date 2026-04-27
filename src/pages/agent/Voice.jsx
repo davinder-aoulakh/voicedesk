@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Save, Play, Check, Plus, Trash2, Sparkles, Languages } from 'lucide-react';
+import { Save, Play, Check, Plus, Trash2, Sparkles, Languages, Loader2 } from 'lucide-react';
 
 // ─── Voice Data ─────────────────────────────────────────────────────────────
 const VOICES = {
@@ -54,10 +54,25 @@ function VoiceCard({ voice, selected, onSelect }) {
   const handlePreview = async (e) => {
     e.stopPropagation();
     setPreviewing(true);
-    // Brief visual feedback — actual TTS preview would require VAPI TTS endpoint
-    await new Promise(r => setTimeout(r, 1200));
-    setPreviewing(false);
-    toast.info(`Previewing ${voice.name} — connect VAPI TTS for audio`);
+    try {
+      const res = await base44.functions.invoke('previewVoice', {
+        voice_id: voice.id,
+        text: `Hi! I'm ${voice.name}, your AI receptionist. How can I help you today?`,
+      });
+      const { audio_base64, content_type } = res.data;
+      const binary = atob(audio_base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: content_type || 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+    } catch {
+      toast.error(`Could not preview ${voice.name}. Please try again.`);
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   return (
@@ -80,7 +95,8 @@ function VoiceCard({ voice, selected, onSelect }) {
       <p className="text-[11px] text-muted-foreground mb-3">{voice.accent} • {voice.name in VOICES.female ? 'Female' : 'Male'}</p>
       <div className="flex gap-2">
         <Button size="sm" variant="outline" className="h-7 text-xs gap-1 flex-1" onClick={handlePreview} disabled={previewing}>
-          <Play className="w-3 h-3" /> {previewing ? 'Playing…' : 'Preview'}
+          {previewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+          {previewing ? 'Loading…' : 'Preview'}
         </Button>
         <Button size="sm" className="h-7 text-xs flex-1 border-0 text-white" style={{ background: '#6C3BFF' }} onClick={() => onSelect(voice)}>
           {selected ? 'Selected' : 'Select'}
