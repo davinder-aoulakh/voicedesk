@@ -441,7 +441,7 @@ export default function Onboarding() {
                     <p className="text-2xl font-syne font-bold text-success mt-1">{phoneNumber}</p>
                   </div>
                 )}
-                <Button onClick={() => navigate('/')} className="w-full gradient-primary border-0 text-white">
+                <Button onClick={() => navigate('/dashboard')} className="w-full gradient-primary border-0 text-white">
                   Go to Dashboard <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>

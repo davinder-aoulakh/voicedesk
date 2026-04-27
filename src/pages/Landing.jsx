@@ -132,7 +132,7 @@ export default function Landing() {
   const industriesRef = useRef(null);
   const pricingRef = useRef(null);
 
-  const handleCTA = () => base44.auth.redirectToLogin('/');
+  const handleCTA = () => base44.auth.redirectToLogin('/dashboard');
 
   useEffect(() => {
     fetch('https://ipapi.co/json/')

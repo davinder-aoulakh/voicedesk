@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/AuthContext';
 
 // ─── Nav Structure ────────────────────────────────────────────────────────────
 const NAV = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Bookings',  icon: Calendar,        path: '/bookings' },
 
   { type: 'group', label: 'Business Operations' },
@@ -72,9 +72,7 @@ function GroupLabel({ label }) {
 
 function NavLink({ label, icon: Icon, path, indent = false }) {
   const location = useLocation();
-  const active = path === '/'
-    ? location.pathname === '/'
-    : location.pathname === path || location.pathname.startsWith(path + '/');
+  const active = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path + '/'));
 
   return (
     <Link
