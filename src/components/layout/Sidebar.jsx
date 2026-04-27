@@ -134,16 +134,25 @@ function AccordionNavItem({ item, open, onToggle }) {
 }
 
 // ─── Voice Minutes Widget ─────────────────────────────────────────────────────
-function VoiceMinutesWidget() {
-  const used  = 0;
-  const limit = 15;
-  const pct   = limit > 0 ? Math.round((used / limit) * 100) : 0;
+const PLAN_LIMITS = { trial: 15, starter: 100, growth: 300, enterprise: 2000 };
 
-  const resetDate = new Date();
-  resetDate.setMonth(resetDate.getMonth() + 1, 1);
-  const resetStr = resetDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+function VoiceMinutesWidget({ business }) {
+  const plan  = business?.subscription_plan || 'trial';
+  const limit = PLAN_LIMITS[plan] ?? 15;
+  const used  = Math.round(business?.voice_minutes_used || 0);
+  const pct   = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
 
-  const bg = pct >= 100 ? '#FEF2F2' : pct >= 80 ? '#FEF3C7' : '#ECFDF5';
+  // Reset date: use stored value or fall back to first of next month
+  let resetStr = '';
+  if (business?.voice_minutes_reset_date) {
+    resetStr = new Date(business.voice_minutes_reset_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+  } else {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1, 1);
+    resetStr = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  const bg       = pct >= 100 ? '#FEF2F2' : pct >= 80 ? '#FEF3C7' : '#ECFDF5';
   const barColor = pct >= 100 ? '#EF4444' : pct >= 80 ? '#F59E0B' : '#10B981';
 
   return (
@@ -355,7 +364,7 @@ export default function Sidebar({ business }) {
 
       {/* Widgets */}
       <AINumberWidget business={business} />
-      <VoiceMinutesWidget />
+      <VoiceMinutesWidget business={business} />
 
       {/* Footer */}
       <div className="mt-3 border-t border-sidebar-border">

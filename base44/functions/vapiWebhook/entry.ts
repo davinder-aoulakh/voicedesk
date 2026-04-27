@@ -399,6 +399,24 @@ Deno.serve(async (req) => {
           ...updateData,
         });
       }
+
+      // ── Increment voice_minutes_used on business ───────────────────────────
+      if (business && duration) {
+        const addedMinutes = duration / 60;
+        const currentUsed = business.voice_minutes_used || 0;
+
+        // Check if reset is due (reset_date has passed)
+        const resetDate = business.voice_minutes_reset_date ? new Date(business.voice_minutes_reset_date) : null;
+        const now = new Date();
+        const needsReset = resetDate && now >= resetDate;
+
+        const nextResetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split('T')[0];
+
+        await base44.asServiceRole.entities.Business.update(business.id, {
+          voice_minutes_used: needsReset ? addedMinutes : currentUsed + addedMinutes,
+          ...(needsReset || !business.voice_minutes_reset_date ? { voice_minutes_reset_date: nextResetDate } : {}),
+        });
+      }
     }
 
     // ── tool-calls ────────────────────────────────────────────────────────────

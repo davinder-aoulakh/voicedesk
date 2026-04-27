@@ -178,6 +178,15 @@
       "type": "boolean",
       "default": true,
       "description": "Whether the public booking page is active"
+    },
+    "voice_minutes_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Cumulative voice minutes used in the current billing period"
+    },
+    "voice_minutes_reset_date": {
+      "type": "string",
+      "description": "ISO date when voice_minutes_used resets (first day of next month)"
     }
   },
   "required": [
