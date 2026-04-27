@@ -8,6 +8,10 @@
     "agent_id": {
       "type": "string"
     },
+    "customer_id": {
+      "type": "string",
+      "description": "Reference to Customer entity ID"
+    },
     "vapi_call_id": {
       "type": "string"
     },

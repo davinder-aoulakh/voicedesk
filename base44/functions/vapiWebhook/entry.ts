@@ -344,6 +344,35 @@ Deno.serve(async (req) => {
       const logs    = await base44.asServiceRole.entities.CallLog.filter({ vapi_call_id: call.id });
       const endedAt = new Date().toISOString();
       const duration = call.duration ? Math.round(call.duration) : null;
+      const callerNumber = call.customer?.number || '';
+      const callerName   = call.customer?.name   || '';
+
+      // ── Upsert Customer ────────────────────────────────────────────────────
+      let customerId = null;
+      if (callerNumber && businessId !== 'unknown') {
+        const existing = await base44.asServiceRole.entities.Customer.filter({
+          business_id: businessId,
+          phone: callerNumber,
+        });
+        if (existing.length) {
+          const c = existing[0];
+          await base44.asServiceRole.entities.Customer.update(c.id, {
+            total_calls: (c.total_calls || 0) + 1,
+            last_contact: endedAt,
+          });
+          customerId = c.id;
+        } else {
+          const newCustomer = await base44.asServiceRole.entities.Customer.create({
+            business_id:  businessId,
+            name:         callerName || 'Unknown',
+            phone:        callerNumber,
+            source:       'ai_agent',
+            total_calls:  1,
+            last_contact: endedAt,
+          });
+          customerId = newCustomer.id;
+        }
+      }
 
       const updateData = {
         status:           (call.endedReason === 'customer-ended-call' || call.endedReason === 'assistant-ended-call') ? 'completed' : 'missed',
@@ -353,6 +382,7 @@ Deno.serve(async (req) => {
         recording_url:    call.recordingUrl  || '',
         summary:          call.summary       || '',
         cost_usd:         call.cost          || null,
+        ...(customerId ? { customer_id: customerId } : {}),
       };
 
       if (logs.length) {
@@ -362,8 +392,8 @@ Deno.serve(async (req) => {
           business_id:   businessId,
           agent_id:      agentId,
           vapi_call_id:  call.id,
-          caller_number: call.customer?.number || '',
-          caller_name:   call.customer?.name   || '',
+          caller_number: callerNumber,
+          caller_name:   callerName,
           direction:     'inbound',
           started_at:    new Date(Date.now() - (duration || 0) * 1000).toISOString(),
           ...updateData,

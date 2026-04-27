@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Phone, Search, Filter, Play, FileText, Clock, ChevronDown, X, Mic } from 'lucide-react';
+import { Phone, Search, Filter, Play, FileText, Clock, ChevronDown, X, Mic, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
+import CustomerSlideOver from '@/components/customers/CustomerSlideOver';
 
 const STATUS_COLORS = {
   completed: 'text-success bg-success/10 border-success/20',
@@ -97,13 +98,31 @@ export default function CallLogs() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedCall, setSelectedCall] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState({}); // map: customer_id or phone -> customer
+  const [customerTags, setCustomerTags] = useState([]);
+  const [viewCustomer, setViewCustomer] = useState(null);
+  const [businessId, setBusinessId] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       const user = await base44.auth.me();
       const businesses = await base44.entities.Business.filter({ owner_id: user.id });
       if (!businesses.length) return;
-      const data = await base44.entities.CallLog.filter({ business_id: businesses[0].id }, '-created_date', 100);
+      const biz = businesses[0];
+      setBusinessId(biz.id);
+      const [data, custs, tags] = await Promise.all([
+        base44.entities.CallLog.filter({ business_id: biz.id }, '-created_date', 100),
+        base44.entities.Customer.filter({ business_id: biz.id }),
+        base44.entities.CustomerTag.filter({ business_id: biz.id }),
+      ]);
+      // Build lookup maps by id and phone
+      const map = {};
+      custs.forEach(c => {
+        if (c.id) map[c.id] = c;
+        if (c.phone) map[c.phone] = c;
+      });
+      setCustomers(map);
+      setCustomerTags(tags);
       setCalls(data);
       setFiltered(data);
       setLoading(false);
@@ -190,6 +209,14 @@ export default function CallLogs() {
                     <td className="px-5 py-4">
                       <p className="text-sm font-medium">{call.caller_name || '—'}</p>
                       <p className="text-xs text-muted-foreground">{call.caller_number || '—'}</p>
+                      {(customers[call.customer_id] || customers[call.caller_number]) && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setViewCustomer(customers[call.customer_id] || customers[call.caller_number]); }}
+                          className="inline-flex items-center gap-1 mt-1 text-xs text-primary hover:underline font-medium"
+                        >
+                          <User className="w-3 h-3" /> View Customer
+                        </button>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-sm text-muted-foreground">
                       {call.started_at ? format(new Date(call.started_at), 'MMM d, h:mm a') : '—'}
@@ -220,6 +247,16 @@ export default function CallLogs() {
       </div>
 
       {selectedCall && <CallDetailModal call={selectedCall} onClose={() => setSelectedCall(null)} />}
+
+      {viewCustomer && (
+        <CustomerSlideOver
+          customer={viewCustomer}
+          allTags={customerTags}
+          businessId={businessId}
+          onClose={() => setViewCustomer(null)}
+          onSave={() => setViewCustomer(null)}
+        />
+      )}
     </div>
   );
 }
