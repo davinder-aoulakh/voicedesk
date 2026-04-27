@@ -15,7 +15,7 @@ import Dashboard from './pages/Dashboard';
 import CallLogs from './pages/CallLogs';
 import Bookings from './pages/Bookings';
 import Analytics from './pages/Analytics';
-import AgentSettings from './pages/AgentSettings';
+
 import Settings from './pages/Settings';
 import Services from './pages/Services';
 import Staff from './pages/Staff';
@@ -68,7 +68,7 @@ const AuthenticatedApp = () => {
         <Route path="/customers" element={<Customers />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/agent" element={<AgentSettings />} />
+        <Route path="/agent" element={<Navigate to="/agent/greetings" replace />} />
         <Route path="/agent/greetings" element={<Greetings />} />
         <Route path="/agent/personality" element={<Personality />} />
         <Route path="/agent/voice" element={<Voice />} />
