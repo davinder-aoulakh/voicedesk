@@ -188,17 +188,19 @@ export default function ServiceSlideOver({ service, isNew, businessId, categorie
                   </FieldRow>
                   <FieldRow label="Category">
                     <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
-                      {selectedCategory && (
+                      {selectedCategory ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
                           style={{ background: selectedCategory.color || '#8B5CF6' }}>
                           {selectedCategory.name}
-                          <button onClick={() => update('category_id', '')} className="hover:bg-black/20 rounded-full p-0.5">
+                          <button onClick={() => { update('category_id', ''); update('category', ''); }} className="hover:bg-black/20 rounded-full p-0.5">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </span>
-                      )}
+                      ) : form.category ? (
+                        <span className="text-xs text-muted-foreground">{form.category}</span>
+                      ) : null}
                       <div className="relative inline-block">
-                        <CategoryPicker categories={categories} onSelect={(id) => update('category_id', id)} />
+                        <CategoryPicker categories={categories} onSelect={(id, name) => { update('category_id', id); update('category', name); }} />
                       </div>
                     </div>
                   </FieldRow>
@@ -308,7 +310,7 @@ function CategoryPicker({ categories, onSelect }) {
         <div className="absolute z-50 top-full left-0 mt-1 w-44 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
           {categories.length === 0 && <p className="text-xs text-muted-foreground p-3 text-center">No categories yet</p>}
           {categories.map(c => (
-            <button key={c.id} onClick={() => { onSelect(c.id); setOpen(false); }}
+            <button key={c.id} onClick={() => { onSelect(c.id, c.name); setOpen(false); }}
               className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-accent transition-colors">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color || '#8B5CF6' }} />
               {c.name}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, Pencil, Trash2, Clock, Tag } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Clock, Tag, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -9,6 +9,40 @@ import ServiceSlideOver from '@/components/services/ServiceSlideOver';
 import CategoriesTab from '@/components/services/CategoriesTab';
 
 const TABS = ['Services', 'Categories'];
+
+function InlineCategoryPicker({ service, cat, categories, onSelect }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative inline-block">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1 group">
+        {cat ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+            style={{ background: cat.color || '#8B5CF6' }}>
+            {cat.name}
+          </span>
+        ) : service.category ? (
+          <span className="text-xs text-muted-foreground">{service.category}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+        <ChevronDown className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 w-44 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+          {categories.length === 0 && <p className="text-xs text-muted-foreground p-3 text-center">No categories</p>}
+          {categories.map(c => (
+            <button key={c.id} onClick={() => { onSelect(c); setOpen(false); }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-accent transition-colors">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color || '#8B5CF6' }} />
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function formatDuration(mins) {
   if (!mins) return '—';
@@ -155,16 +189,15 @@ export default function Services() {
 
                       {/* Category */}
                       <div>
-                        {cat ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-                            style={{ background: cat.color || '#8B5CF6' }}>
-                            {cat.name}
-                          </span>
-                        ) : service.category ? (
-                          <span className="text-xs text-muted-foreground">{service.category}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                        <InlineCategoryPicker
+                          service={service}
+                          cat={cat}
+                          categories={categories}
+                          onSelect={async (catObj) => {
+                            await base44.entities.Service.update(service.id, { category_id: catObj.id, category: catObj.name });
+                            setServices(prev => prev.map(s => s.id === service.id ? { ...s, category_id: catObj.id, category: catObj.name } : s));
+                          }}
+                        />
                       </div>
 
                       {/* Duration */}
