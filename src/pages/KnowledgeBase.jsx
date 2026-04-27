@@ -1,356 +1,320 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { BookOpen, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Save, Sparkles, Search, X } from 'lucide-react';
+import {
+  Building2, Tag, UtensilsCrossed, MapPin, Users, HelpCircle,
+  Shield, Star, MessageSquare, Eye, Pencil, Trash2, RefreshCw,
+  Upload, Link, AlignLeft, CheckCircle2, XCircle, Sparkles
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import PreviewModal from '@/components/knowledge/PreviewModal';
+import TextEditorModal from '@/components/knowledge/TextEditorModal';
+import UrlIngestionModal from '@/components/knowledge/UrlIngestionModal';
 
-const CATEGORIES = ['General', 'Pricing', 'Booking', 'Services', 'Hours', 'Cancellation', 'Payments', 'Other'];
+// ─── Category meta ────────────────────────────────────────────────────────────
+const CATEGORY_META = {
+  business_info:     { label: 'Business Info',      icon: Building2,       color: '#3B82F6', bg: '#EFF6FF', desc: 'Business name, industry, contact details, and description.' },
+  service_menu:      { label: 'Service Menu',        icon: Tag,             color: '#14B8A6', bg: '#F0FDFA', desc: 'All services, durations, prices, and descriptions.' },
+  food_menu:         { label: 'Food Menu',           icon: UtensilsCrossed, color: '#F97316', bg: '#FFF7ED', desc: 'Food items, pricing, dietary info, and specials.' },
+  locations:         { label: 'Locations',           icon: MapPin,          color: '#22C55E', bg: '#F0FDF4', desc: 'Physical addresses, opening hours per location.' },
+  staff:             { label: 'Staff',               icon: Users,           color: '#8B5CF6', bg: '#F5F3FF', desc: 'Team members, roles, specialisations, and bios.' },
+  faq:               { label: 'FAQ',                 icon: HelpCircle,      color: '#EAB308', bg: '#FEFCE8', desc: 'Common questions and answers about your business.' },
+  service_policy:    { label: 'Service Policy',      icon: Shield,          color: '#EF4444', bg: '#FEF2F2', desc: 'Cancellation, refund, and booking policies.' },
+  special_promotion: { label: 'Special Promotion',   icon: Star,            color: '#EC4899', bg: '#FDF2F8', desc: 'Current deals, discounts, and seasonal offers.' },
+  custom_messages:   { label: 'Custom Messages',     icon: MessageSquare,   color: '#6B7280', bg: '#F9FAFB', desc: 'Custom scripts and phrases for specific scenarios.' },
+};
 
-function FaqModal({ faq, onClose, onSave }) {
-  const isNew = !faq;
-  const [form, setForm] = useState(faq || { question: '', answer: '', category: 'General' });
-  const [saving, setSaving] = useState(false);
+// Categories that support Sync from Speako
+const SYNC_CATEGORIES = ['business_info', 'service_menu', 'locations', 'staff'];
 
-  const handleSave = async () => {
-    if (!form.question || !form.answer) return toast.error('Question and answer are required');
-    setSaving(true);
-    onSave(form);
-    setSaving(false);
-  };
+// ─── Rebuild VAPI system prompt ───────────────────────────────────────────────
+async function rebuildVapiPrompt(businessId, agentId, vapiAssistantId) {
+  if (!vapiAssistantId) return;
+  const allCards = await base44.entities.KnowledgeCard.filter({ business_id: businessId, status: 'published' });
+  const sections = allCards.map(c => {
+    const meta = CATEGORY_META[c.category];
+    return `### ${meta?.label || c.category}\n${c.content}`;
+  }).join('\n\n');
 
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-syne">{isNew ? 'Add FAQ Entry' : 'Edit FAQ Entry'}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div>
-            <Label>Category</Label>
-            <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-              <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Question *</Label>
-            <Input value={form.question} onChange={e => setForm(f => ({ ...f, question: e.target.value }))} placeholder="e.g. What are your opening hours?" className="mt-1.5" />
-          </div>
-          <div>
-            <Label>Answer *</Label>
-            <Textarea value={form.answer} onChange={e => setForm(f => ({ ...f, answer: e.target.value }))} placeholder="Provide a clear, detailed answer..." className="mt-1.5 h-32 resize-none" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="gradient-primary border-0 text-white">
-            {saving ? 'Saving…' : isNew ? 'Add Entry' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  const systemPrompt = `You are a professional AI receptionist. Use the following knowledge base to answer customer questions accurately:\n\n${sections}`;
+  await base44.functions.invoke('updateVapiAssistant', { assistant_id: vapiAssistantId, system_prompt: systemPrompt });
 }
 
-function FaqItem({ item, onEdit, onDelete }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`bg-card border rounded-xl overflow-hidden transition-all ${open ? 'border-primary/30' : 'border-border'}`}>
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-secondary/30 transition-colors">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{item.question}</p>
-          {!open && <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.answer}</p>}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="hidden sm:inline text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">{item.category}</span>
-          {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-        </div>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-            <div className="px-5 pb-4 border-t border-border">
-              <p className="text-sm text-muted-foreground leading-relaxed mt-3">{item.answer}</p>
-              <div className="flex gap-2 mt-4">
-                <Button size="sm" variant="outline" onClick={() => onEdit(item)}>
-                  <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
-                </Button>
-                <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => onDelete(item)}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-export default function KnowledgeBase() {
-  const [business, setBusiness] = useState(null);
-  const [faqs, setFaqs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filterCat, setFilterCat] = useState('all');
-  const [modalFaq, setModalFaq] = useState(null);
-  const [showNew, setShowNew] = useState(false);
-
-  // Extra free-form context sections
-  const [extraContext, setExtraContext] = useState('');
-
-  useEffect(() => {
-    const load = async () => {
-      const user = await base44.auth.me();
-      const businesses = await base44.entities.Business.filter({ owner_id: user.id });
-      if (!businesses.length) return;
-      const biz = businesses[0];
-      setBusiness(biz);
-
-      // Parse existing faq_content (stored as Q:\nA: blocks or JSON)
-      if (biz.faq_content) {
-        const parsed = parseFaqContent(biz.faq_content);
-        setFaqs(parsed.faqs);
-        setExtraContext(parsed.extra);
-      }
-      setLoading(false);
-    };
-    load();
-  }, []);
-
-  // Parse faq_content stored as "Q: ...\nA: ..." blocks
-  const parseFaqContent = (content) => {
-    const faqs = [];
-    let extra = '';
-    try {
-      const lines = content.split('\n\n');
-      lines.forEach(block => {
-        const qMatch = block.match(/^Q:\s*(.+)/m);
-        const aMatch = block.match(/^A:\s*([\s\S]+)/m);
-        if (qMatch && aMatch) {
-          faqs.push({
-            id: Math.random().toString(36).slice(2),
-            question: qMatch[1].trim(),
-            answer: aMatch[1].trim(),
-            category: 'General',
-          });
-        } else if (block.trim()) {
-          extra += (extra ? '\n\n' : '') + block.trim();
-        }
-      });
-    } catch {}
-    return { faqs, extra };
-  };
-
-  const serializeFaqs = (faqList, extra) => {
-    const blocks = faqList.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n');
-    return extra ? blocks + '\n\n' + extra : blocks;
-  };
-
-  const handleSave = async () => {
-    if (!business) return;
-    setSaving(true);
-    const content = serializeFaqs(faqs, extraContext);
-    await base44.entities.Business.update(business.id, { faq_content: content });
-    toast.success('Knowledge base saved');
-    setSaving(false);
-  };
-
-  const handleAddFaq = (form) => {
-    const newFaq = { ...form, id: Date.now().toString() };
-    setFaqs(prev => [...prev, newFaq]);
-    setShowNew(false);
-    toast.success('FAQ entry added');
-  };
-
-  const handleEditFaq = (form) => {
-    setFaqs(prev => prev.map(f => f.id === modalFaq.id ? { ...f, ...form } : f));
-    setModalFaq(null);
-    toast.success('FAQ entry updated');
-  };
-
-  const handleDeleteFaq = (item) => {
-    setFaqs(prev => prev.filter(f => f.id !== item.id));
-    toast.success('FAQ entry deleted');
-  };
-
-  const handleGenerate = async () => {
-    if (!business) return;
-    setGenerating(true);
-    try {
-      const services = await base44.entities.Service.filter({ business_id: business.id });
-      const staff = await base44.entities.Staff.filter({ business_id: business.id });
-      const hours = business.business_hours;
-
-      const hoursText = hours ? Object.entries(hours)
-        .map(([day, h]) => h.open ? `${day}: ${h.open_time}–${h.close_time}` : `${day}: Closed`)
-        .join(', ') : 'Not specified';
-
-      const serviceList = services.map(s => `${s.name} ($${s.price}, ${s.duration_minutes}min)`).join(', ') || 'Not specified';
-
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `Generate a comprehensive FAQ knowledge base for a ${business.industry} business called "${business.name}".
-Business description: ${business.description || 'N/A'}
-Services offered: ${serviceList}
-Staff: ${staff.map(s => s.name).join(', ') || 'N/A'}
-Business hours: ${hoursText}
-
-Generate 10-12 realistic, helpful FAQ entries that callers commonly ask.
-Cover: pricing, booking process, cancellation, hours, services, staff qualifications, payment methods, and any industry-specific questions.`,
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            faqs: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  question: { type: 'string' },
-                  answer: { type: 'string' },
-                  category: { type: 'string' },
-                }
-              }
-            }
-          }
-        }
-      });
-
-      const generated = (res.faqs || []).map(f => ({ ...f, id: Date.now().toString() + Math.random(), category: f.category || 'General' }));
-      setFaqs(prev => [...prev, ...generated]);
-      toast.success(`Generated ${generated.length} FAQ entries`);
-    } catch (e) {
-      toast.error('Generation failed: ' + e.message);
+// ─── Sync from entities ───────────────────────────────────────────────────────
+async function syncFromEntities(category, business) {
+  const bizId = business.id;
+  switch (category) {
+    case 'business_info': {
+      const lines = [
+        `Business Name: ${business.name || ''}`,
+        `Industry: ${business.industry || ''}`,
+        `Phone: ${business.phone || ''}`,
+        `Email: ${business.email || ''}`,
+        `Address: ${business.address || ''}`,
+        `Timezone: ${business.timezone || ''}`,
+        `Description: ${business.description || ''}`,
+        `Website: ${business.website || ''}`,
+      ].filter(l => !l.endsWith(': ')).join('\n');
+      return lines;
     }
-    setGenerating(false);
+    case 'service_menu': {
+      const services = await base44.entities.Service.filter({ business_id: bizId, is_active: true });
+      if (!services.length) throw new Error('No active services found');
+      return services.map(s =>
+        `${s.name} — ${s.duration_minutes}min — $${s.price}${s.description ? `\n  ${s.description}` : ''}`
+      ).join('\n');
+    }
+    case 'locations': {
+      const locs = await base44.entities.Location.filter({ business_id: bizId });
+      if (!locs.length) throw new Error('No locations found');
+      return locs.map(l =>
+        [l.name, l.address, l.city, l.state, l.country].filter(Boolean).join(', ')
+      ).join('\n');
+    }
+    case 'staff': {
+      const staff = await base44.entities.Staff.filter({ business_id: bizId, is_active: true });
+      if (!staff.length) throw new Error('No active staff found');
+      return staff.map(s =>
+        `${s.name} — ${s.role || ''}${s.bio ? `\n  ${s.bio}` : ''}`
+      ).join('\n');
+    }
+    default: return '';
+  }
+}
+
+// ─── KnowledgeCardTile ────────────────────────────────────────────────────────
+function KnowledgeCardTile({ card, business, agent, onRefresh }) {
+  const meta = CATEGORY_META[card.category];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  const isPublished = card.status === 'published';
+
+  const [activeModal, setActiveModal] = useState(null); // 'preview'|'edit'|'url'
+  const [syncing, setSyncing]         = useState(false);
+  const [uploading, setUploading]     = useState(false);
+  const fileRef = useRef(null);
+
+  const publishCard = async (content) => {
+    await base44.entities.KnowledgeCard.update(card.id, {
+      content,
+      status: 'published',
+      last_synced_at: new Date().toISOString(),
+    });
+    toast.success(`${meta.label} published`);
+    await rebuildVapiPrompt(business.id, agent?.id, agent?.vapi_assistant_id).catch(() => {});
+    onRefresh();
   };
 
-  const filteredFaqs = faqs.filter(f => {
-    const matchCat = filterCat === 'all' || f.category === filterCat;
-    const matchSearch = !search || f.question.toLowerCase().includes(search.toLowerCase()) || f.answer.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
-  });
+  const handleUnpublish = async () => {
+    await base44.entities.KnowledgeCard.update(card.id, { status: 'not_added', content: '' });
+    toast.success(`${meta.label} unpublished`);
+    onRefresh();
+  };
 
-  const grouped = filteredFaqs.reduce((acc, f) => {
-    const cat = f.category || 'General';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(f);
-    return acc;
-  }, {});
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const content = await syncFromEntities(card.category, business);
+      await publishCard(content);
+    } catch (e) {
+      toast.error(e.message);
+    }
+    setSyncing(false);
+  };
 
-  const usedCategories = [...new Set(faqs.map(f => f.category || 'General'))];
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: { type: 'object', properties: { text: { type: 'string' } } },
+      });
+      const text = result?.output?.text || result?.output?.[0]?.text || JSON.stringify(result?.output);
+      await publishCard(text);
+    } catch (e) {
+      toast.error('File upload failed: ' + e.message);
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: meta.bg }}>
+            <Icon className="w-4.5 h-4.5" style={{ color: meta.color, width: 18, height: 18 }} />
+          </div>
+          <span className="font-semibold text-sm">{meta.label}</span>
+        </div>
+        {/* Status badge */}
+        {isPublished ? (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-full shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" /> Published
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-destructive bg-destructive/10 px-2.5 py-1 rounded-full shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-destructive" /> Not Added
+          </span>
+        )}
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-muted-foreground leading-relaxed flex-1">{meta.desc}</p>
+
+      {/* Actions */}
+      {isPublished ? (
+        <div className="flex items-center gap-1.5 pt-1 border-t border-border">
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs gap-1" onClick={() => setActiveModal('preview')}>
+            <Eye className="w-3.5 h-3.5" /> Preview
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs gap-1" onClick={() => setActiveModal('edit')}>
+            <Pencil className="w-3.5 h-3.5" /> Edit
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto" onClick={handleUnpublish}>
+            <Trash2 className="w-3.5 h-3.5" /> Remove
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 pt-1 border-t border-border">
+          {/* Sync from Speako */}
+          {SYNC_CATEGORIES.includes(card.category) && (
+            <button onClick={handleSync} disabled={syncing}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-border hover:bg-accent transition-colors disabled:opacity-50">
+              <RefreshCw className={`w-3.5 h-3.5 text-primary ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing…' : 'Sync from Speako'}
+            </button>
+          )}
+
+          {/* Upload File */}
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-border hover:bg-accent transition-colors disabled:opacity-50">
+            <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+            {uploading ? 'Uploading…' : 'Upload File'}
+          </button>
+          <input ref={fileRef} type="file" accept=".pdf,.docx,.xlsx,.csv" className="hidden" onChange={handleFileUpload} />
+
+          {/* Add from URL */}
+          <button onClick={() => setActiveModal('url')}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-border hover:bg-accent transition-colors">
+            <Link className="w-3.5 h-3.5 text-muted-foreground" />
+            Add from URL
+          </button>
+
+          {/* Edit in Text Mode */}
+          <button onClick={() => setActiveModal('edit')}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-border hover:bg-accent transition-colors">
+            <AlignLeft className="w-3.5 h-3.5 text-muted-foreground" />
+            Edit in Text Mode
+          </button>
+        </div>
+      )}
+
+      {/* Modals */}
+      {activeModal === 'preview' && (
+        <PreviewModal card={card} displayName={meta.label} onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'edit' && (
+        <TextEditorModal card={card} displayName={meta.label}
+          onSave={async (content) => { await publishCard(content); setActiveModal(null); }}
+          onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'url' && (
+        <UrlIngestionModal displayName={meta.label}
+          onSave={async (content) => { await publishCard(content); setActiveModal(null); }}
+          onClose={() => setActiveModal(null)} />
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+export default function KnowledgeBase() {
+  const [business, setBusiness]     = useState(null);
+  const [agent, setAgent]           = useState(null);
+  const [cards, setCards]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+
+  const load = async () => {
+    const user = await base44.auth.me();
+    const businesses = await base44.entities.Business.filter({ owner_id: user.id });
+    if (!businesses.length) return;
+    const biz = businesses[0];
+    setBusiness(biz);
+
+    const [agents, rawCards] = await Promise.all([
+      base44.entities.Agent.filter({ business_id: biz.id }),
+      base44.entities.KnowledgeCard.filter({ business_id: biz.id }),
+    ]);
+    setAgent(agents[0] || null);
+
+    // Ensure all 9 categories exist
+    const categoryOrder = Object.keys(CATEGORY_META);
+    const existing = {};
+    rawCards.forEach(c => { existing[c.category] = c; });
+
+    // Create any missing cards
+    const missing = categoryOrder.filter(cat => !existing[cat]);
+    if (missing.length) {
+      await Promise.all(missing.map(cat =>
+        base44.entities.KnowledgeCard.create({ business_id: biz.id, category: cat, status: 'not_added' })
+      ));
+      const refreshed = await base44.entities.KnowledgeCard.filter({ business_id: biz.id });
+      refreshed.forEach(c => { existing[c.category] = c; });
+    }
+
+    setCards(categoryOrder.map(cat => existing[cat]).filter(Boolean));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const publishedCount = cards.filter(c => c.status === 'published').length;
+
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-syne font-bold">Knowledge Base</h1>
-          <p className="text-muted-foreground mt-1">FAQ & context your AI agent uses to answer calls</p>
+          <p className="text-muted-foreground mt-1">All your business info in one place for your agents.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleGenerate} disabled={generating}>
-            <Sparkles className={`w-4 h-4 mr-2 ${generating ? 'animate-spin' : ''}`} />
-            {generating ? 'Generating…' : 'AI Generate'}
-          </Button>
-          <Button onClick={() => setShowNew(true)} variant="outline">
-            <Plus className="w-4 h-4 mr-2" /> Add FAQ
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="gradient-primary border-0 text-white shadow-lg shadow-primary/20">
-            <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving…' : 'Save'}
-          </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border border-border rounded-xl px-3 py-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span>{publishedCount} / 9 published</span>
+          </div>
+          <Button variant="outline" size="sm">Start Tour</Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {Array(5).fill(0).map((_, i) => <div key={i} className="h-16 bg-card border border-border rounded-xl animate-pulse" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array(9).fill(0).map((_, i) => (
+            <div key={i} className="h-56 bg-card border border-border rounded-2xl animate-pulse" />
+          ))}
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Search & filter */}
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search FAQs…" className="pl-9" />
-            </div>
-            <Select value={filterCat} onValueChange={setFilterCat}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {usedCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Stats strip */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'FAQ Entries', value: faqs.length },
-              { label: 'Categories', value: usedCategories.length },
-              { label: 'Words', value: faqs.reduce((s, f) => s + f.answer.split(' ').length, 0) },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-card border border-border rounded-xl p-4 text-center">
-                <p className="text-2xl font-syne font-bold text-primary">{value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* FAQ list grouped by category */}
-          {Object.keys(grouped).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-card border border-border rounded-2xl">
-              <BookOpen className="w-12 h-12 text-muted-foreground/30 mb-4" />
-              <p className="font-medium text-muted-foreground mb-1">No FAQ entries yet</p>
-              <p className="text-sm text-muted-foreground mb-4">Add entries manually or use AI Generate</p>
-              <div className="flex gap-2">
-                <Button onClick={handleGenerate} disabled={generating} variant="outline">
-                  <Sparkles className="w-4 h-4 mr-2" /> AI Generate
-                </Button>
-                <Button onClick={() => setShowNew(true)} className="gradient-primary border-0 text-white">
-                  <Plus className="w-4 h-4 mr-2" /> Add FAQ
-                </Button>
-              </div>
-            </div>
-          ) : (
-            Object.entries(grouped).map(([cat, items]) => (
-              <div key={cat}>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">{cat}</h3>
-                <div className="space-y-2">
-                  {items.map(faq => (
-                    <FaqItem key={faq.id} item={faq}
-                      onEdit={item => setModalFaq(item)}
-                      onDelete={handleDeleteFaq}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-
-          {/* Extra context */}
-          <div className="bg-card border border-border rounded-2xl p-6">
-            <h3 className="font-syne font-semibold mb-1">Additional Context</h3>
-            <p className="text-xs text-muted-foreground mb-3">Any extra information for your AI agent (policies, special notes, instructions)</p>
-            <Textarea
-              value={extraContext}
-              onChange={e => setExtraContext(e.target.value)}
-              className="resize-none h-32 text-sm"
-              placeholder="e.g. We require 24 hours notice for cancellations. Parking is available on Smith St..."
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {cards.map((card, i) => (
+            <KnowledgeCardTile
+              key={card.id}
+              card={card}
+              business={business}
+              agent={agent}
+              onRefresh={load}
             />
-          </div>
+          ))}
         </div>
       )}
-
-      {showNew && <FaqModal onClose={() => setShowNew(false)} onSave={handleAddFaq} />}
-      {modalFaq && <FaqModal faq={modalFaq} onClose={() => setModalFaq(null)} onSave={handleEditFaq} />}
     </div>
   );
 }
