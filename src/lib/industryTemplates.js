@@ -19,19 +19,6 @@ export const INDUSTRY_CUSTOMER_TAGS = {
 };
 
 export const INDUSTRY_TEMPLATES = {
-  salon:       [{ name: 'Regular', color: '#8B5CF6' }, { name: 'VIP', color: '#EC4899' }, { name: 'New Client', color: '#10B981' }, { name: 'Referral', color: '#3B82F6' }],
-  clinic:      [{ name: 'Regular Patient', color: '#3B82F6' }, { name: 'New Patient', color: '#10B981' }, { name: 'Bulk Billed', color: '#F59E0B' }, { name: 'DVA', color: '#EF4444' }],
-  restaurant:  [{ name: 'Regular', color: '#F59E0B' }, { name: 'VIP', color: '#EF4444' }, { name: 'Allergy', color: '#EC4899' }, { name: 'Group Booking', color: '#8B5CF6' }],
-  dental:      [{ name: 'Regular', color: '#3B82F6' }, { name: 'Health Fund', color: '#10B981' }, { name: 'New Patient', color: '#8B5CF6' }, { name: 'Payment Plan', color: '#F59E0B' }],
-  gym:         [{ name: 'Member', color: '#EF4444' }, { name: 'PT Client', color: '#F59E0B' }, { name: 'Trial', color: '#10B981' }, { name: 'Corporate', color: '#3B82F6' }],
-  spa:         [{ name: 'Regular', color: '#EC4899' }, { name: 'VIP', color: '#8B5CF6' }, { name: 'Gift Voucher', color: '#10B981' }, { name: 'Couples', color: '#F59E0B' }],
-  tradie:      [{ name: 'Residential', color: '#3B82F6' }, { name: 'Commercial', color: '#F59E0B' }, { name: 'Repeat', color: '#10B981' }, { name: 'Emergency', color: '#EF4444' }],
-  legal:       [{ name: 'Individual', color: '#3B82F6' }, { name: 'Corporate', color: '#8B5CF6' }, { name: 'Referred', color: '#10B981' }, { name: 'Pro Bono', color: '#F59E0B' }],
-  property:    [{ name: 'Buyer', color: '#3B82F6' }, { name: 'Seller', color: '#10B981' }, { name: 'Investor', color: '#8B5CF6' }, { name: 'Tenant', color: '#F59E0B' }],
-  removalist:  [{ name: 'Commercial Client', color: '#F59E0B' }, { name: 'One-Off Move', color: '#3B82F6' }, { name: 'Repeat Residential', color: '#10B981' }, { name: 'Interstate Move', color: '#8B5CF6' }, { name: 'Local Move', color: '#EC4899' }],
-  other:       [{ name: 'Regular', color: '#8B5CF6' }, { name: 'New', color: '#10B981' }, { name: 'VIP', color: '#EC4899' }],
-};
-
   salon: {
     businessHours: {
       monday:    { open: true,  open_time: '09:00', close_time: '18:00' },

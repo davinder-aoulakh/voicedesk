@@ -66,7 +66,7 @@ export default function InlineTagPicker({
     } else if (entityName && businessId) {
       const created = await base44.entities[entityName].create({ name: newName.trim(), color: newColor, business_id: businessId });
       // add to tags list locally
-      tagsProp.push(created); // mutate is fine here since parent re-renders via onChange
+      tags.push(created); // mutate is fine here since parent re-renders via onChange
       const newIds = [...draft, created.id];
       setDraft(newIds);
       onChange?.(newIds);
