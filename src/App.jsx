@@ -31,6 +31,8 @@ import PhonePage from './pages/Phone';
 import BusinessInfo from './pages/settings/BusinessInfo';
 import Locations from './pages/settings/Locations';
 import BillingPage from './pages/settings/Billing';
+import BookingPageManager from './pages/BookingPageManager';
+import PublicBooking from './pages/PublicBooking';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -80,7 +82,11 @@ const AuthenticatedApp = () => {
         <Route path="/settings/business-info" element={<BusinessInfo />} />
         <Route path="/settings/locations" element={<Locations />} />
         <Route path="/settings/billing" element={<BillingPage />} />
+        <Route path="/booking-page" element={<BookingPageManager />} />
       </Route>
+
+      {/* Public (no auth) */}
+      <Route path="/book/:slug" element={<PublicBooking />} />
 
       <Route path="*" element={<PageNotFound />} />
     </Routes>

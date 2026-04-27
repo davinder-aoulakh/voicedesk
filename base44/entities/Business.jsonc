@@ -169,6 +169,15 @@
     "primary_color": {
       "type": "string",
       "description": "Hex colour for branding, e.g. #6C3EFF"
+    },
+    "booking_slug": {
+      "type": "string",
+      "description": "URL slug for the public booking page, e.g. 'my-salon'"
+    },
+    "booking_page_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the public booking page is active"
     }
   },
   "required": [

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Calendar, Bot, Settings, Zap, LogOut,
   ChevronDown, Users, Clock, Tag, BookOpen, Wrench,
   MapPin, CreditCard, Building2, Smile, Mic, Contact,
-  Phone, Sun, Moon, Sparkles, MoreHorizontal, User,
+  Phone, Sun, Moon, Sparkles, MoreHorizontal, User, Globe,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -37,6 +37,7 @@ const NAV = [
 
   { type: 'group', label: 'Configure' },
   { label: 'Phone Number', icon: Phone, path: '/phone' },
+  { label: 'Booking Page', icon: Globe, path: '/booking-page' },
   { label: 'Settings', icon: Settings, path: '/settings' },
 
   { type: 'group', label: 'Organization Settings' },
