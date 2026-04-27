@@ -26,6 +26,7 @@ import Greetings from './pages/agent/Greetings';
 import Personality from './pages/agent/Personality';
 import Voice from './pages/agent/Voice';
 import Tools from './pages/agent/Tools';
+import Account from './pages/Account';
 import BusinessInfo from './pages/settings/BusinessInfo';
 import Locations from './pages/settings/Locations';
 import BillingPage from './pages/settings/Billing';
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/availability" element={<BusinessHours />} />
         <Route path="/knowledge" element={<KnowledgeBase />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/settings/business-info" element={<BusinessInfo />} />
         <Route path="/settings/locations" element={<Locations />} />
         <Route path="/settings/billing" element={<BillingPage />} />
