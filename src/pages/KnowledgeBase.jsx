@@ -85,15 +85,15 @@ async function syncFromEntities(category, business) {
 
 // ─── KnowledgeCardTile ────────────────────────────────────────────────────────
 function KnowledgeCardTile({ card, business, agent, onRefresh }) {
-  const meta = CATEGORY_META[card.category];
-  if (!meta) return null;
-  const Icon = meta.icon;
-  const isPublished = card.status === 'published';
-
   const [activeModal, setActiveModal] = useState(null); // 'preview'|'edit'|'url'
   const [syncing, setSyncing]         = useState(false);
   const [uploading, setUploading]     = useState(false);
   const fileRef = useRef(null);
+
+  const meta = CATEGORY_META[card.category];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  const isPublished = card.status === 'published';
 
   const publishCard = async (content) => {
     await base44.entities.KnowledgeCard.update(card.id, {
