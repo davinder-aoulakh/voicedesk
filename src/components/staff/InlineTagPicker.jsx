@@ -15,7 +15,7 @@ const PRESET_COLORS = ['#8B5CF6','#10B981','#F59E0B','#EF4444','#3B82F6','#EC489
  *      Automatically calls base44.entities[entityName].create/delete and calls onChange(newIds)
  */
 export default function InlineTagPicker({
-  tags: tagsProp,
+  tags: tags,
   selectedIds,
   onSave,
   onChange,        // simpler callback: receives new id array immediately on toggle
