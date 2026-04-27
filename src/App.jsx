@@ -25,6 +25,7 @@ import AppLayout from './components/layout/AppLayout';
 import Greetings from './pages/agent/Greetings';
 import Personality from './pages/agent/Personality';
 import Voice from './pages/agent/Voice';
+import Tools from './pages/agent/Tools';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
         <Route path="/agent/greetings" element={<Greetings />} />
         <Route path="/agent/personality" element={<Personality />} />
         <Route path="/agent/voice" element={<Voice />} />
+        <Route path="/agent/tools" element={<Tools />} />
         <Route path="/services" element={<Services />} />
         <Route path="/staff" element={<Staff />} />
         <Route path="/hours" element={<BusinessHours />} />
