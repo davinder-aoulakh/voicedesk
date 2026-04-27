@@ -12,15 +12,20 @@ import { format, addDays, startOfDay, isBefore, isSameDay } from 'date-fns';
 function generateSlots(businessHours, date, durationMins = 60) {
   const dayName = format(date, 'EEEE').toLowerCase(); // monday, tuesday...
   const dayHours = businessHours?.[dayName];
-  if (!dayHours || !dayHours.open) return [];
+  if (!dayHours) return [];
+
+  const isOpen = dayHours.slots?.length > 0 || dayHours.open === true;
+  if (!isOpen) return [];
 
   const parseTime = (t) => {
     const [h, m] = (t || '09:00').split(':').map(Number);
     return h * 60 + m;
   };
 
-  const openMin  = parseTime(dayHours.start || '09:00');
-  const closeMin = parseTime(dayHours.end   || '17:00');
+  const startTime = dayHours.slots?.[0]?.start || dayHours.open_time || '09:00';
+  const endTime   = dayHours.slots?.[0]?.end   || dayHours.close_time || '17:00';
+  const openMin  = parseTime(startTime);
+  const closeMin = parseTime(endTime);
   const slots = [];
   for (let m = openMin; m + durationMins <= closeMin; m += durationMins) {
     const h = Math.floor(m / 60);
@@ -72,7 +77,8 @@ function MiniCalendar({ selected, onSelect, businessHours }) {
   const isDayOpen = (date) => {
     if (!businessHours) return true;
     const dayName = format(date, 'EEEE').toLowerCase();
-    return businessHours[dayName]?.open !== false;
+    const dh = businessHours[dayName];
+    return dh?.slots?.length > 0 || dh?.open === true;
   };
 
   return (
