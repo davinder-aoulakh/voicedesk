@@ -1,126 +1,56 @@
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Plus, Pencil, Trash2, Clock, DollarSign, Tag, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Clock, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import ServiceSlideOver from '@/components/services/ServiceSlideOver';
+import CategoriesTab from '@/components/services/CategoriesTab';
 
-const CURRENCIES = ['AUD', 'USD', 'GBP', 'NZD', 'CAD'];
-const COLORS = ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6'];
+const TABS = ['Services', 'Categories'];
 
-function ServiceModal({ service, businessId, onClose, onSave }) {
-  const isNew = !service;
-  const [form, setForm] = useState(service || {
-    name: '', description: '', category: '', duration_minutes: 60,
-    price: 0, currency: 'AUD', buffer_minutes: 0, max_bookings_per_slot: 1,
-    is_active: true, color: COLORS[0], business_id: businessId,
-  });
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    if (!form.name) return toast.error('Service name is required');
-    setSaving(true);
-    if (isNew) {
-      await base44.entities.Service.create(form);
-    } else {
-      await base44.entities.Service.update(service.id, form);
-    }
-    toast.success(isNew ? 'Service created' : 'Service updated');
-    setSaving(false);
-    onSave();
-  };
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-syne">{isNew ? 'Add Service' : 'Edit Service'}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label>Service Name *</Label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Haircut & Style" className="mt-1.5" />
-            </div>
-            <div className="col-span-2">
-              <Label>Description</Label>
-              <Textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1.5 h-16 resize-none" placeholder="Brief description..." />
-            </div>
-            <div>
-              <Label>Category</Label>
-              <Input value={form.category || ''} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Hair, Nails..." className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Duration (minutes)</Label>
-              <Input type="number" min="5" step="5" value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: +e.target.value }))} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Price</Label>
-              <Input type="number" min="0" step="0.50" value={form.price} onChange={e => setForm(f => ({ ...f, price: +e.target.value }))} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Currency</Label>
-              <Select value={form.currency} onValueChange={v => setForm(f => ({ ...f, currency: v }))}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>{CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Buffer Time (min)</Label>
-              <Input type="number" min="0" step="5" value={form.buffer_minutes} onChange={e => setForm(f => ({ ...f, buffer_minutes: +e.target.value }))} className="mt-1.5" />
-            </div>
-            <div>
-              <Label>Max Bookings per Slot</Label>
-              <Input type="number" min="1" value={form.max_bookings_per_slot} onChange={e => setForm(f => ({ ...f, max_bookings_per_slot: +e.target.value }))} className="mt-1.5" />
-            </div>
-            <div className="col-span-2">
-              <Label className="mb-2 block">Colour</Label>
-              <div className="flex gap-2 flex-wrap">
-                {COLORS.map(c => (
-                  <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${form.color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
-                    style={{ background: c }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="gradient-primary border-0 text-white">
-            {saving ? 'Saving...' : isNew ? 'Add Service' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+function formatDuration(mins) {
+  if (!mins) return '—';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 export default function Services() {
+  const [tab, setTab]           = useState('Services');
   const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalService, setModalService] = useState(null);
-  const [showNew, setShowNew] = useState(false);
-  const [businessId, setBusinessId] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [filterCategory, setFilterCategory] = useState('all');
+  const [locations, setLocations]   = useState([]);
+  const [staffList, setStaffList]   = useState([]);
+  const [businessId, setBusinessId] = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState('');
+  const [slideOver, setSlideOver]   = useState(null); // null | 'new' | service object
+  const [addCatOpen, setAddCatOpen] = useState(false);
 
   const load = async () => {
     const user = await base44.auth.me();
     const businesses = await base44.entities.Business.filter({ owner_id: user.id });
     if (!businesses.length) return;
-    setBusinessId(businesses[0].id);
-    const data = await base44.entities.Service.filter({ business_id: businesses[0].id });
-    setServices(data);
-    const cats = [...new Set(data.map(s => s.category).filter(Boolean))];
-    setCategories(cats);
+    const biz = businesses[0];
+    setBusinessId(biz.id);
+    const [svcData, catData, locData, stfData] = await Promise.all([
+      base44.entities.Service.filter({ business_id: biz.id }),
+      base44.entities.ServiceCategory.filter({ business_id: biz.id }),
+      base44.entities.Location.filter({ business_id: biz.id }),
+      base44.entities.Staff.filter({ business_id: biz.id }),
+    ]);
+    setServices(svcData);
+    setCategories(catData);
+    setLocations(locData);
+    setStaffList(stfData);
     setLoading(false);
+  };
+
+  const loadCategories = async () => {
+    if (!businessId) return;
+    const catData = await base44.entities.ServiceCategory.filter({ business_id: businessId });
+    setCategories(catData);
   };
 
   useEffect(() => { load(); }, []);
@@ -131,98 +61,166 @@ export default function Services() {
     toast.success('Service deleted');
   };
 
-  const handleToggle = async (service) => {
-    const updated = { ...service, is_active: !service.is_active };
-    await base44.entities.Service.update(service.id, { is_active: updated.is_active });
-    setServices(prev => prev.map(s => s.id === service.id ? updated : s));
-  };
+  const getCategoryById = (id) => categories.find(c => c.id === id);
 
-  const filtered = filterCategory === 'all' ? services : services.filter(s => s.category === filterCategory);
-  const grouped = filtered.reduce((acc, s) => {
-    const cat = s.category || 'Uncategorised';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(s);
-    return acc;
-  }, {});
+  const filtered = services.filter(s => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const cat = getCategoryById(s.category_id)?.name || s.category || '';
+    return (
+      s.name.toLowerCase().includes(q) ||
+      (s.description || '').toLowerCase().includes(q) ||
+      cat.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-syne font-bold">Services</h1>
-          <p className="text-muted-foreground mt-1">Manage your service catalogue</p>
+          <h1 className="text-2xl md:text-3xl font-syne font-bold">Service Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage your services and their categories</p>
         </div>
-        <Button onClick={() => setShowNew(true)} className="gradient-primary border-0 text-white shadow-lg shadow-primary/20">
-          <Plus className="w-4 h-4 mr-2" /> Add Service
+        <Button
+          onClick={() => tab === 'Categories' ? setAddCatOpen(true) : setSlideOver('new')}
+          className="gradient-primary border-0 text-white gap-1.5">
+          <Plus className="w-4 h-4" />
+          {tab === 'Categories' ? 'Add Category' : 'Add Service'}
         </Button>
       </div>
 
-      {/* Category filter */}
-      {categories.length > 0 && (
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {['all', ...categories].map(cat => (
-            <button key={cat} onClick={() => setFilterCategory(cat)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${filterCategory === cat ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
-              {cat === 'all' ? 'All' : cat}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex border-b border-border mb-6">
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}>
+            {t}
+          </button>
+        ))}
+      </div>
 
-      {loading ? (
-        <div className="grid gap-3">
-          {Array(4).fill(0).map((_, i) => <div key={i} className="h-20 bg-card border border-border rounded-xl animate-pulse" />)}
-        </div>
-      ) : services.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-2xl">
-          <Tag className="w-12 h-12 text-muted-foreground/30 mb-4" />
-          <p className="font-medium text-muted-foreground mb-1">No services yet</p>
-          <p className="text-sm text-muted-foreground mb-4">Add the services your business offers</p>
-          <Button onClick={() => setShowNew(true)} className="gradient-primary border-0 text-white"><Plus className="w-4 h-4 mr-2" /> Add First Service</Button>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([cat, items]) => (
-            <div key={cat}>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">{cat}</h3>
-              <div className="space-y-2">
-                {items.map((service, i) => (
-                  <motion.div key={service.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                    className={`bg-card border border-border rounded-xl p-4 flex items-center gap-4 transition-all ${!service.is_active ? 'opacity-50' : 'hover:border-primary/30'}`}>
-                    <div className="w-3 h-10 rounded-full shrink-0" style={{ background: service.color || '#8B5CF6' }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">{service.name}</p>
-                        {!service.is_active && <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">Inactive</span>}
+      {/* Services Tab */}
+      {tab === 'Services' && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Showing {filtered.length} service{filtered.length !== 1 ? 's' : ''}</p>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search services by name, description, or category..."
+              className="pl-9 w-full" />
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">
+              {Array(4).fill(0).map((_, i) => <div key={i} className="h-16 bg-card border border-border rounded-xl animate-pulse" />)}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-2xl">
+              <Tag className="w-12 h-12 text-muted-foreground/30 mb-4" />
+              <p className="font-medium text-muted-foreground mb-1">No services found</p>
+              {!search && (
+                <Button onClick={() => setSlideOver('new')} className="gradient-primary border-0 text-white mt-3 gap-1.5">
+                  <Plus className="w-4 h-4" /> Add First Service
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[2.5fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-secondary/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
+                <span>Service Name</span>
+                <span>Category</span>
+                <span>Duration</span>
+                <span>Price</span>
+                <span>Actions</span>
+              </div>
+
+              <div className="divide-y divide-border">
+                {filtered.map(service => {
+                  const cat = getCategoryById(service.category_id);
+                  return (
+                    <div key={service.id}
+                      className="grid grid-cols-[2.5fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3.5 items-center hover:bg-secondary/20 transition-colors">
+                      {/* Service Name */}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{service.name}</p>
+                        {service.description && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{service.description}</p>
+                        )}
                       </div>
-                      {service.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{service.description}</p>}
-                      <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{service.duration_minutes}m</span>
-                        <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{service.price} {service.currency}</span>
-                        {service.buffer_minutes > 0 && <span>+{service.buffer_minutes}m buffer</span>}
+
+                      {/* Category */}
+                      <div>
+                        {cat ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+                            style={{ background: cat.color || '#8B5CF6' }}>
+                            {cat.name}
+                          </span>
+                        ) : service.category ? (
+                          <span className="text-xs text-muted-foreground">{service.category}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+
+                      {/* Duration */}
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                        {formatDuration(service.duration_minutes)}
+                      </div>
+
+                      {/* Price */}
+                      <div className="text-sm font-medium">
+                        ${Number(service.price || 0).toFixed(2)}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => setSlideOver(service)}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                          <Pencil className="w-4 h-4 text-blue-500" />
+                        </button>
+                        <button onClick={() => handleDelete(service.id)}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => handleToggle(service)} className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-                        {service.is_active ? <ToggleRight className="w-4 h-4 text-success" /> : <ToggleLeft className="w-4 h-4" />}
-                      </button>
-                      <button onClick={() => setModalService(service)} className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(service.id)} className="p-2 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      {showNew && <ServiceModal businessId={businessId} onClose={() => setShowNew(false)} onSave={() => { setShowNew(false); load(); }} />}
-      {modalService && <ServiceModal service={modalService} businessId={businessId} onClose={() => setModalService(null)} onSave={() => { setModalService(null); load(); }} />}
+      {/* Categories Tab */}
+      {tab === 'Categories' && (
+        <CategoriesTab
+          categories={categories}
+          businessId={businessId}
+          onRefresh={loadCategories}
+          showForm={addCatOpen}
+          onFormClose={() => setAddCatOpen(false)}
+        />
+      )}
+
+      {/* Slide-over */}
+      {slideOver && (
+        <ServiceSlideOver
+          service={slideOver === 'new' ? null : slideOver}
+          isNew={slideOver === 'new'}
+          businessId={businessId}
+          categories={categories}
+          locations={locations}
+          staffList={staffList}
+          onClose={() => setSlideOver(null)}
+          onSave={() => { setSlideOver(null); load(); }}
+        />
+      )}
     </div>
   );
 }
