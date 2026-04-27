@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Phone, Calendar, TrendingUp, Clock, Target } from 'lucide-react';
+import { Phone, Calendar, Clock, Target, Mic } from 'lucide-react';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 import { motion } from 'framer-motion';
 
@@ -78,6 +78,21 @@ export default function Analytics() {
     ? Math.round(calls.filter(c => c.duration_seconds).reduce((a, c) => a + c.duration_seconds, 0) / calls.filter(c => c.duration_seconds).length)
     : 0;
 
+  // Voice minutes this month
+  const PLAN_LIMITS = { trial: 15, starter: 100, advance: 300, growth: 300, pro: 800, expert: 2000, enterprise: 2000 };
+  const plan = business?.subscription_plan || 'trial';
+  const voiceLimit = PLAN_LIMITS[plan] ?? 15;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const voiceMinutesUsed = Math.round(
+    calls
+      .filter(c => c.started_at && new Date(c.started_at) >= monthStart && c.duration_seconds)
+      .reduce((sum, c) => sum + c.duration_seconds, 0) / 60
+  );
+  const voicePct = voiceLimit > 0 ? Math.min(100, Math.round((voiceMinutesUsed / voiceLimit) * 100)) : 0;
+  const voiceBarColor = voicePct >= 100 ? '#EF4444' : voicePct >= 80 ? '#F59E0B' : '#10B981';
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -86,11 +101,45 @@ export default function Analytics() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <KpiCard label="Total Calls" value={totalCalls} icon={Phone} delay={0} sub="All time" />
         <KpiCard label="Bookings Made" value={totalBookings} icon={Calendar} delay={0.05} sub="Via AI agent" />
         <KpiCard label="Conversion Rate" value={`${conversionRate}%`} icon={Target} delay={0.1} sub="Calls → bookings" />
         <KpiCard label="Avg Call Duration" value={avgDuration ? `${Math.floor(avgDuration / 60)}m ${avgDuration % 60}s` : '—'} icon={Clock} delay={0.15} sub="Per call" />
+      </div>
+
+      {/* Voice Minutes KPI + progress */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+        <KpiCard
+          label="Voice Minutes Used"
+          value={`${voiceMinutesUsed} min`}
+          icon={Mic}
+          delay={0.2}
+          sub={`/ ${voiceLimit} min on ${planLabel} plan`}
+        />
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium">Voice Minutes This Month</p>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: voicePct >= 80 ? '#FEF3C7' : '#ECFDF5', color: voiceBarColor }}>
+              {voicePct}% used
+            </span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-secondary overflow-hidden mb-2">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${voicePct}%`, background: voiceBarColor }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{voiceMinutesUsed} min used</span>
+            <span>{Math.max(0, voiceLimit - voiceMinutesUsed)} min remaining</span>
+          </div>
+          {voicePct >= 80 && (
+            <p className="text-xs mt-2 font-medium" style={{ color: voiceBarColor }}>
+              {voicePct >= 100 ? '⚠️ Limit reached — upgrade to continue using AI calls.' : '⚠️ Approaching your monthly voice limit.'}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
