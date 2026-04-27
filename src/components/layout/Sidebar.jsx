@@ -36,6 +36,7 @@ const NAV = [
   { label: 'AI Tools',   icon: Wrench,   path: '/agent/tools' },
 
   { type: 'group', label: 'Configure' },
+  { label: 'Phone Number', icon: Phone, path: '/phone' },
   { label: 'Settings', icon: Settings, path: '/settings' },
 
   { type: 'group', label: 'Organization Settings' },
