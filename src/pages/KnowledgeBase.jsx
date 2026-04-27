@@ -16,7 +16,7 @@ import UrlIngestionModal from '@/components/knowledge/UrlIngestionModal';
 const CATEGORY_META = {
   business_info:     { label: 'Business Info',      icon: Building2,       color: '#3B82F6', bg: '#EFF6FF', desc: 'Business name, industry, contact details, and description.' },
   service_menu:      { label: 'Service Menu',        icon: Tag,             color: '#14B8A6', bg: '#F0FDFA', desc: 'All services, durations, prices, and descriptions.' },
-  food_menu:         { label: 'Food Menu',           icon: UtensilsCrossed, color: '#F97316', bg: '#FFF7ED', desc: 'Food items, pricing, dietary info, and specials.' },
+  food_menu:         { label: 'Food Menu',           icon: UtensilsCrossed, color: '#F97316', bg: '#FFF7ED', desc: 'Food items, pricing, dietary info, and specials.', visibleFor: ['restaurant'] },
   locations:         { label: 'Locations',           icon: MapPin,          color: '#22C55E', bg: '#F0FDF4', desc: 'Physical addresses, opening hours per location.' },
   staff:             { label: 'Staff',               icon: Users,           color: '#8B5CF6', bg: '#F5F3FF', desc: 'Team members, roles, specialisations, and bios.' },
   faq:               { label: 'FAQ',                 icon: HelpCircle,      color: '#EAB308', bg: '#FEFCE8', desc: 'Common questions and answers about your business.' },
@@ -304,15 +304,20 @@ export default function KnowledgeBase() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map((card, i) => (
-            <KnowledgeCardTile
-              key={card.id}
-              card={card}
-              business={business}
-              agent={agent}
-              onRefresh={load}
-            />
-          ))}
+          {cards
+            .filter(card => {
+              const meta = CATEGORY_META[card.category];
+              return !meta?.visibleFor || meta.visibleFor.includes(business?.industry);
+            })
+            .map((card) => (
+              <KnowledgeCardTile
+                key={card.id}
+                card={card}
+                business={business}
+                agent={agent}
+                onRefresh={load}
+              />
+            ))}
         </div>
       )}
     </div>
