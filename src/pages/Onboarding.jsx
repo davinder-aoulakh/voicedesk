@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { getTemplate } from '@/lib/industryTemplates';
 import BusinessTypePicker from '@/components/onboarding/BusinessTypePicker';
+import CompletionStep from '@/components/onboarding/CompletionStep';
 
 // ─── Sub-type → template mapping ──────────────────────────────────────────────
 const SUBTYPE_TO_TEMPLATE = {
@@ -138,6 +139,11 @@ export default function Onboarding() {
   const [numbersLoading, setNumbersLoading]     = useState(false);
   const [numbersError, setNumbersError]         = useState(null);
   const [selectedNumber, setSelectedNumber]     = useState(null);
+  const [completing, setCompleting]             = useState(false);
+  const [completedBadges, setCompletedBadges]   = useState([]);
+  const [progressPct, setProgressPct]           = useState(0);
+  const [showSuccess, setShowSuccess]           = useState(false);
+  const apiPromiseRef = useRef(null);
 
   // ── Step 1 → 2 ────────────────────────────────────────────────────────────
   const handleNameNext = () => {
@@ -263,37 +269,56 @@ export default function Onboarding() {
     setStep(5);
   };
 
-  // ── Step 5: provision phone ────────────────────────────────────────────────
+  // ── Step 5: provision phone + animated completion ─────────────────────────
   const handleProvisionPhone = async () => {
-    setLoading(true);
-    try {
-      const provRes = await base44.functions.invoke('provisionPhoneNumber', {
-        business_id: createdBusiness.id,
-        country: selectedNumber?.country_code || business.country || 'AU',
-        phone_number: selectedNumber?.phone_number || null,
-      });
-      const { phone_number, phone_sid } = provRes.data;
-      setPhoneNumber(phone_number);
-      await base44.entities.Business.update(createdBusiness.id, {
-        twilio_phone_number: phone_number, twilio_phone_sid: phone_sid, onboarding_completed: true,
-      });
-      const agents = await base44.entities.Agent.filter({ business_id: createdBusiness.id });
-      const vapiAssistantId = agents[0]?.vapi_assistant_id;
-      if (vapiAssistantId && phone_number && phone_sid) {
-        try {
-          await base44.functions.invoke('linkVapiPhoneNumber', {
-            business_id: createdBusiness.id, assistant_id: vapiAssistantId,
-            twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
-          });
-        } catch (linkErr) {
-          console.warn('VAPI phone linking failed (non-fatal):', linkErr.message);
-        }
-      }
-    } catch (e) {
-      toast.error('Phone provisioning failed: ' + e.message);
-    }
-    setLoading(false);
+    // Reset completion state and move to step 6 (animated)
+    setCompleting(true);
+    setCompletedBadges([]);
+    setProgressPct(0);
+    setShowSuccess(false);
     setStep(6);
+
+    // Run API calls in parallel — store promise for later awaiting
+    const apiPromise = (async () => {
+      try {
+        const provRes = await base44.functions.invoke('provisionPhoneNumber', {
+          business_id: createdBusiness.id,
+          country: selectedNumber?.country_code || business.country || 'AU',
+          phone_number: selectedNumber?.phone_number || null,
+        });
+        const { phone_number, phone_sid } = provRes.data;
+        setPhoneNumber(phone_number);
+        await base44.entities.Business.update(createdBusiness.id, {
+          twilio_phone_number: phone_number, twilio_phone_sid: phone_sid, onboarding_completed: true,
+        });
+        const agents = await base44.entities.Agent.filter({ business_id: createdBusiness.id });
+        const vapiAssistantId = agents[0]?.vapi_assistant_id;
+        if (vapiAssistantId && phone_number && phone_sid) {
+          try {
+            await base44.functions.invoke('linkVapiPhoneNumber', {
+              business_id: createdBusiness.id, assistant_id: vapiAssistantId,
+              twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
+            });
+          } catch (linkErr) {
+            console.warn('VAPI phone linking failed (non-fatal):', linkErr.message);
+          }
+        }
+      } catch (e) {
+        toast.error('Phone provisioning failed: ' + e.message);
+      }
+    })();
+
+    apiPromiseRef.current = apiPromise;
+  };
+
+  // ── Skip phone: go straight to animated completion with no API calls ───────
+  const handleSkipPhone = async () => {
+    setCompleting(true);
+    setCompletedBadges([]);
+    setProgressPct(0);
+    setShowSuccess(false);
+    setStep(6);
+    apiPromiseRef.current = base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true });
   };
 
   // ── Phone number helpers ───────────────────────────────────────────────────
@@ -704,49 +729,29 @@ export default function Onboarding() {
                   </Button>
                 </div>
                 <button
-                  onClick={() => { setStep(6); base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true }); }}
+                  onClick={handleSkipPhone}
                   className="w-full text-sm text-muted-foreground hover:text-foreground text-center">
                   Skip for now →
                 </button>
               </div>
             )}
 
-            {/* ── Step 6: Done ── */}
+            {/* ── Step 6: Animated Completion ── */}
             {step === 6 && (
-              <div className="text-center space-y-5">
-                <div className="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-syne font-bold">You're all set! 🎉</h2>
-                  <p className="text-muted-foreground text-sm mt-2">Your AI receptionist is ready to take calls.</p>
-                </div>
-
-                {seedSummary && (
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    {[
-                      { label: 'Staff', value: seedSummary.staff },
-                      { label: 'Services', value: seedSummary.services },
-                      { label: 'FAQs', value: seedSummary.faq },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="p-3 bg-accent rounded-xl">
-                        <p className="text-2xl font-syne font-bold text-primary">{value}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{label} added</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {phoneNumber && (
-                  <div className="p-4 bg-success/10 border border-success/20 rounded-xl">
-                    <p className="text-sm text-success font-medium">Your AI phone number</p>
-                    <p className="text-2xl font-syne font-bold text-success mt-1">{phoneNumber}</p>
-                  </div>
-                )}
-                <Button onClick={() => navigate('/dashboard')} className="w-full gradient-primary border-0 text-white">
-                  Go to Dashboard <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
+              <CompletionStep
+                completing={completing}
+                setCompleting={setCompleting}
+                completedBadges={completedBadges}
+                setCompletedBadges={setCompletedBadges}
+                progressPct={progressPct}
+                setProgressPct={setProgressPct}
+                showSuccess={showSuccess}
+                setShowSuccess={setShowSuccess}
+                apiPromiseRef={apiPromiseRef}
+                seedSummary={seedSummary}
+                phoneNumber={phoneNumber}
+                onNavigate={() => navigate('/dashboard')}
+              />
             )}
 
           </motion.div>
