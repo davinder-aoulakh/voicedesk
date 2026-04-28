@@ -30,7 +30,12 @@ export default function BusinessHours() {
       setOverrides(biz.holidays || []);
 
       const locs = await base44.entities.Location.filter({ business_id: biz.id });
-      setLocation(locs.find(l => l.is_primary) || locs[0] || null);
+      const primaryLoc = locs.find(l => l.is_primary) || locs[0] || null;
+      setLocation(primaryLoc);
+      // Load hours from primary location first, fall back to business
+      if (primaryLoc?.business_hours && Object.keys(primaryLoc.business_hours).length > 0) {
+        setHours(migrateHours(primaryLoc.business_hours));
+      }
       setLoading(false);
     };
     load();
@@ -38,7 +43,9 @@ export default function BusinessHours() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Business.update(businessId, { business_hours: hours, holidays: overrides });
+    const saves = [base44.entities.Business.update(businessId, { business_hours: hours, holidays: overrides })];
+    if (location) saves.push(base44.entities.Location.update(location.id, { business_hours: hours }));
+    await Promise.all(saves);
     setVersion(v => v + 1);
     toast.success('Availability saved');
     setSaving(false);
