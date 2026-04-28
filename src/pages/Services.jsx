@@ -96,7 +96,7 @@ export default function Services() {
     toast.success('Service deleted');
   };
 
-  const getCategoryById = (id) => categories.find(c => c.id === id);
+  const getCategoryById = (id, name) => categories.find(c => c.id === id) || (name ? categories.find(c => c.name === name) : undefined);
 
   const filtered = services.filter(s => {
     if (!search) return true;
@@ -175,7 +175,7 @@ export default function Services() {
 
               <div className="divide-y divide-border">
                 {filtered.map(service => {
-                  const cat = getCategoryById(service.category_id);
+                  const cat = getCategoryById(service.category_id, service.category);
                   return (
                     <div key={service.id}
                       className="grid grid-cols-[2.5fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3.5 items-center hover:bg-secondary/20 transition-colors">
