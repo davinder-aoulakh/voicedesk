@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ChevronRight, ChevronLeft, Building2, Bot, Phone, CheckCircle, Tag } from 'lucide-react';
+import { Zap, ChevronRight, ChevronLeft, Building2, Bot, Phone, CheckCircle, Tag, MapPin, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { getTemplate } from '@/lib/industryTemplates';
@@ -37,7 +37,55 @@ const SUBTYPE_TO_TEMPLATE = {
   'Pet Grooming': 'salon', 'Cleaning Service': 'other',
 };
 
-const TIMEZONES = ['Australia/Sydney','Australia/Melbourne','Australia/Brisbane','Australia/Perth','Australia/Adelaide','America/New_York','America/Los_Angeles','Europe/London'];
+// ─── Region data ───────────────────────────────────────────────────────────────
+const COUNTRIES = [
+  { code: 'AU', label: '🇦🇺 Australia' },
+  { code: 'US', label: '🇺🇸 United States' },
+  { code: 'GB', label: '🇬🇧 United Kingdom' },
+  { code: 'NZ', label: '🇳🇿 New Zealand' },
+  { code: 'CA', label: '🇨🇦 Canada' },
+  { code: 'IE', label: '🇮🇪 Ireland' },
+  { code: 'DE', label: '🇩🇪 Germany' },
+  { code: 'FR', label: '🇫🇷 France' },
+  { code: 'SG', label: '🇸🇬 Singapore' },
+  { code: 'IN', label: '🇮🇳 India' },
+  { code: 'ZA', label: '🇿🇦 South Africa' },
+];
+
+const STATES = {
+  AU: ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'],
+  US: ['CA', 'NY', 'TX', 'FL', 'IL', 'WA', 'OH', 'GA', 'NC', 'MI', 'NJ', 'VA', 'AZ', 'MA', 'CO'],
+  GB: ['England', 'Scotland', 'Wales', 'Northern Ireland'],
+  NZ: ['Auckland', 'Wellington', 'Canterbury', 'Waikato', 'Bay of Plenty'],
+  CA: ['ON', 'BC', 'AB', 'QC', 'MB', 'SK', 'NS', 'NB'],
+};
+
+const TIMEZONES_BY_COUNTRY = {
+  AU: ['Australia/Sydney', 'Australia/Melbourne', 'Australia/Brisbane', 'Australia/Perth', 'Australia/Adelaide'],
+  US: ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles'],
+  GB: ['Europe/London'],
+  NZ: ['Pacific/Auckland'],
+  CA: ['America/Toronto', 'America/Vancouver', 'America/Winnipeg', 'America/Halifax'],
+  IE: ['Europe/Dublin'],
+  DE: ['Europe/Berlin'],
+  FR: ['Europe/Paris'],
+  SG: ['Asia/Singapore'],
+  IN: ['Asia/Kolkata'],
+  ZA: ['Africa/Johannesburg'],
+};
+
+// Auto-pick timezone from country+state
+const DEFAULT_TZ = {
+  'AU:WA': 'Australia/Perth', 'AU:QLD': 'Australia/Brisbane', 'AU:SA': 'Australia/Adelaide',
+  'AU:NT': 'Australia/Darwin',
+};
+function pickTimezone(country, state) {
+  const key = `${country}:${state}`;
+  if (DEFAULT_TZ[key]) return DEFAULT_TZ[key];
+  const tzs = TIMEZONES_BY_COUNTRY[country];
+  return tzs ? tzs[0] : 'Australia/Sydney';
+}
+
 const VOICES = [
   { id: 'sarah', name: 'Sarah', desc: 'Warm & professional', provider: '11labs' },
   { id: 'aria',  name: 'Aria',  desc: 'Friendly & energetic', provider: '11labs' },
@@ -48,9 +96,10 @@ const VOICES = [
 const steps = [
   { id: 1, label: 'Your Business', icon: Building2 },
   { id: 2, label: 'Business Type', icon: Tag },
-  { id: 3, label: 'Agent Setup', icon: Bot },
-  { id: 4, label: 'Phone Number', icon: Phone },
-  { id: 5, label: 'Done', icon: CheckCircle },
+  { id: 3, label: 'Location', icon: MapPin },
+  { id: 4, label: 'Agent Setup', icon: Bot },
+  { id: 5, label: 'Phone Number', icon: Phone },
+  { id: 6, label: 'Done', icon: CheckCircle },
 ];
 
 async function seedIndustryData(businessId, industry) {
@@ -69,7 +118,7 @@ async function seedIndustryData(businessId, industry) {
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const [step, setStep]     = useState(1);
+  const [step, setStep]         = useState(1);
   const [loading, setLoading]   = useState(false);
   const [seeding, setSeeding]   = useState(false);
   const [seedProgress, setSeedProgress] = useState('');
@@ -77,7 +126,8 @@ export default function Onboarding() {
 
   const [business, setBusiness] = useState({
     name: '', business_type: '', industry: '',
-    phone: '', email: '', timezone: 'Australia/Sydney', country: 'AU', description: '',
+    location_name: '', state: '', country: 'AU', timezone: 'Australia/Sydney',
+    phone: '', email: '', description: '',
   });
   const [agent, setAgent] = useState({
     name: 'Aria', voice_id: 'aria', voice_provider: '11labs', greeting_message: '', persona: '', services: [],
@@ -85,28 +135,57 @@ export default function Onboarding() {
   const [createdBusiness, setCreatedBusiness] = useState(null);
   const [phoneNumber, setPhoneNumber]         = useState(null);
 
-  // ── Step 1 → 2: just store name ───────────────────────────────────────────
+  // ── Step 1 → 2 ────────────────────────────────────────────────────────────
   const handleNameNext = () => {
     if (!business.name.trim()) return toast.error('Please enter your business name');
     setStep(2);
   };
 
-  // ── Step 2 → create business + seed ───────────────────────────────────────
-  const handleTypeNext = async () => {
+  // ── Step 2 → 3 (just advance, no API calls yet) ───────────────────────────
+  const handleTypeNext = () => {
     if (!business.business_type) return toast.error('Please select a business type');
+    // Pre-fill location name with business name as a convenience default
+    setBusiness(b => ({ ...b, location_name: b.location_name || b.name }));
+    setStep(3);
+  };
+
+  // ── Step 3 → 4: create business, location, knowledge cards, seed ──────────
+  const handleLocationNext = async () => {
+    const { location_name, state, country, timezone } = business;
+    if (!location_name.trim()) return toast.error('Please enter a location name');
+    if (!state.trim())         return toast.error('Please select a state / region');
+    if (!country)              return toast.error('Please select a country');
+    if (!timezone)             return toast.error('Please select a timezone');
+
     setLoading(true);
-
     const industry = SUBTYPE_TO_TEMPLATE[business.business_type] || 'other';
-    const bizData  = { ...business, industry };
-
     const user = await base44.auth.me();
-    const biz  = await base44.entities.Business.create({ ...bizData, owner_id: user.id, subscription_plan: 'trial' });
+
+    const biz = await base44.entities.Business.create({
+      name: business.name,
+      industry,
+      business_type: business.business_type,
+      state: business.state,
+      country: business.country,
+      timezone: business.timezone,
+      phone: business.phone,
+      email: business.email,
+      description: business.description,
+      owner_id: user.id,
+      subscription_plan: 'trial',
+    });
     setCreatedBusiness(biz);
 
-    // Primary location
+    // Primary location using location_name and state
     await base44.entities.Location.create({
-      business_id: biz.id, name: business.name, country: business.country || 'AU',
-      timezone: business.timezone, is_primary: true,
+      business_id: biz.id,
+      name: business.location_name || business.name,
+      address: '',
+      city: '',
+      state: business.state,
+      country: business.country,
+      timezone: business.timezone,
+      is_primary: true,
     });
 
     // Knowledge cards
@@ -115,9 +194,12 @@ export default function Onboarding() {
       `Business Name: ${business.name}`,
       `Business Type: ${business.business_type}`,
       `Industry: ${industry}`,
-      business.phone    && `Phone: ${business.phone}`,
-      business.email    && `Email: ${business.email}`,
+      `Location: ${business.location_name}`,
+      `State: ${business.state}`,
+      `Country: ${business.country}`,
       `Timezone: ${business.timezone}`,
+      business.phone && `Phone: ${business.phone}`,
+      business.email && `Email: ${business.email}`,
       business.description && `About: ${business.description}`,
     ].filter(Boolean).join('\n');
 
@@ -144,14 +226,14 @@ export default function Onboarding() {
     }
     setSeeding(false);
     setLoading(false);
-    setStep(3);
+    setStep(4);
   };
 
-  // ── Step 3: create agent ───────────────────────────────────────────────────
+  // ── Step 4: create agent ───────────────────────────────────────────────────
   const handleCreateAgent = async () => {
     if (!createdBusiness) return;
     setLoading(true);
-    const greeting    = agent.greeting_message || `Hi! You've reached ${business.name}. I'm ${agent.name}, your AI assistant. How can I help you today?`;
+    const greeting     = agent.greeting_message || `Hi! You've reached ${business.name}. I'm ${agent.name}, your AI assistant. How can I help you today?`;
     const systemPrompt = `You are ${agent.name}, a professional AI receptionist for ${business.name}, a ${business.business_type || business.industry} business. ${agent.persona || 'Be friendly, helpful, and professional.'} Help callers with bookings, enquiries, and information about the business.`;
 
     const agentData = {
@@ -173,10 +255,10 @@ export default function Onboarding() {
 
     await base44.entities.Agent.create({ ...agentData, vapi_assistant_id: vapiId, status: vapiId ? 'active' : 'draft' });
     setLoading(false);
-    setStep(4);
+    setStep(5);
   };
 
-  // ── Step 4: provision phone ────────────────────────────────────────────────
+  // ── Step 5: provision phone ────────────────────────────────────────────────
   const handleProvisionPhone = async () => {
     setLoading(true);
     try {
@@ -204,12 +286,14 @@ export default function Onboarding() {
       toast.error('Phone provisioning failed: ' + e.message);
     }
     setLoading(false);
-    setStep(5);
+    setStep(6);
   };
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-  // Step 2 card needs more width for the picker
   const isWideStep = step === 2;
+  const stateOptions = STATES[business.country] || null;
+  const tzOptions    = TIMEZONES_BY_COUNTRY[business.country] || ['UTC'];
+
+  const step3Valid = business.location_name.trim() && business.state.trim() && business.country && business.timezone;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -223,21 +307,21 @@ export default function Onboarding() {
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {/* Stepper */}
-        <div className="flex items-center gap-2 mb-10 flex-wrap justify-center">
+        <div className="flex items-center gap-1.5 mb-10 flex-wrap justify-center">
           {steps.map((s, i) => {
             const Icon = s.icon;
             const done   = step > s.id;
             const active = step === s.id;
             return (
-              <div key={s.id} className="flex items-center gap-2">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              <div key={s.id} className="flex items-center gap-1.5">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all ${
                   active ? 'bg-primary text-primary-foreground' :
                   done   ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'
                 }`}>
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3 h-3" />
                   <span className="hidden sm:inline">{s.label}</span>
                 </div>
-                {i < steps.length - 1 && <div className={`w-6 h-px ${done ? 'bg-success' : 'bg-border'}`} />}
+                {i < steps.length - 1 && <div className={`w-5 h-px ${done ? 'bg-success' : 'bg-border'}`} />}
               </div>
             );
           })}
@@ -274,25 +358,150 @@ export default function Onboarding() {
             {/* ── Step 2: Business Type ── */}
             {step === 2 && (
               <div className="space-y-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-syne font-bold">What type of business are you?</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Select the option that best describes your business.</p>
-                  </div>
+                <div>
+                  <h2 className="text-2xl font-syne font-bold">What type of business are you?</h2>
+                  <p className="text-muted-foreground text-sm mt-1">Select the option that best describes your business.</p>
                 </div>
-
                 <div className="max-h-[55vh] overflow-y-auto pr-1">
                   <BusinessTypePicker
                     selected={business.business_type}
                     onSelect={bt => setBusiness(b => ({ ...b, business_type: bt, industry: SUBTYPE_TO_TEMPLATE[bt] || 'other' }))}
                   />
                 </div>
-
                 <div className="flex gap-3 pt-1">
                   <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                     <ChevronLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
-                  <Button onClick={handleTypeNext} disabled={!business.business_type || loading} className="flex-1 gradient-primary border-0 text-white">
+                  <Button onClick={handleTypeNext} disabled={!business.business_type} className="flex-1 gradient-primary border-0 text-white">
+                    Continue <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 3: Location & Region ── */}
+            {step === 3 && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-syne font-bold">Location & Region</h2>
+                  <p className="text-muted-foreground text-sm mt-1">Tell us where your business is based.</p>
+                </div>
+
+                {/* Your Selections review card */}
+                <div className="border border-border rounded-xl p-4 bg-secondary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <MapPin className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="font-semibold text-sm">Your Selections</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-card border border-border rounded-lg px-3 py-2.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Building2 className="w-3 h-3 text-muted-foreground" />
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Business Name</p>
+                      </div>
+                      <p className="font-semibold text-sm">{business.name}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg px-3 py-2.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Tag className="w-3 h-3 text-muted-foreground" />
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Business Type</p>
+                      </div>
+                      <p className="font-semibold text-sm">{business.business_type}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location Details */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-sm">Location Details</span>
+                  </div>
+                  <div>
+                    <Label>Primary location name *</Label>
+                    <Input
+                      value={business.location_name}
+                      onChange={e => setBusiness(b => ({ ...b, location_name: e.target.value }))}
+                      placeholder="e.g. Wonder Sushi Parramatta"
+                      className="mt-1.5"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">This is the name of this specific location or branch.</p>
+                  </div>
+                </div>
+
+                {/* Region & Timezone */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Globe className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-sm">Region & Timezone</span>
+                  </div>
+                  <div className="space-y-3">
+                    {/* Country */}
+                    <div>
+                      <Label>Country *</Label>
+                      <Select
+                        value={business.country}
+                        onValueChange={v => {
+                          const tz = pickTimezone(v, '');
+                          setBusiness(b => ({ ...b, country: v, state: '', timezone: tz }));
+                        }}
+                      >
+                        <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* State */}
+                    <div>
+                      <Label>State / Region *</Label>
+                      {stateOptions ? (
+                        <Select
+                          value={business.state}
+                          onValueChange={v => {
+                            const tz = pickTimezone(business.country, v);
+                            setBusiness(b => ({ ...b, state: v, timezone: tz }));
+                          }}
+                        >
+                          <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select state" /></SelectTrigger>
+                          <SelectContent>
+                            {stateOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={business.state}
+                          onChange={e => setBusiness(b => ({ ...b, state: e.target.value }))}
+                          placeholder="e.g. Bavaria"
+                          className="mt-1.5"
+                        />
+                      )}
+                    </div>
+
+                    {/* Timezone */}
+                    <div>
+                      <Label>Timezone *</Label>
+                      <Select
+                        value={business.timezone}
+                        onValueChange={v => setBusiness(b => ({ ...b, timezone: v }))}
+                      >
+                        <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {tzOptions.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Back
+                  </Button>
+                  <Button onClick={handleLocationNext} disabled={!step3Valid || loading} className="flex-1 gradient-primary border-0 text-white">
                     {loading ? (
                       <span className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -304,8 +513,8 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* ── Step 3: Agent Setup ── */}
-            {step === 3 && (
+            {/* ── Step 4: Agent Setup ── */}
+            {step === 4 && (
               <div className="space-y-5">
                 <div>
                   <h2 className="text-2xl font-syne font-bold">Configure your AI agent</h2>
@@ -344,7 +553,7 @@ export default function Onboarding() {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={() => setStep(2)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
                   <Button onClick={handleCreateAgent} disabled={loading} className="flex-1 gradient-primary border-0 text-white">
                     {loading ? (
                       <span className="flex items-center gap-2">
@@ -357,8 +566,8 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* ── Step 4: Phone ── */}
-            {step === 4 && (
+            {/* ── Step 5: Phone ── */}
+            {step === 5 && (
               <div className="space-y-5">
                 <div>
                   <h2 className="text-2xl font-syne font-bold">Get your AI phone number</h2>
@@ -370,22 +579,13 @@ export default function Onboarding() {
                     <span className="font-semibold">Phone Number Provisioning</span>
                   </div>
                   <p className="text-sm text-muted-foreground">We'll assign you a local phone number via Twilio. Your AI agent will answer all calls to this number automatically.</p>
-                  <div className="mt-3">
-                    <Label>Country</Label>
-                    <Select value={business.country} onValueChange={v => setBusiness(b => ({ ...b, country: v }))}>
-                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AU">🇦🇺 Australia</SelectItem>
-                        <SelectItem value="US">🇺🇸 United States</SelectItem>
-                        <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
-                        <SelectItem value="NZ">🇳🇿 New Zealand</SelectItem>
-                        <SelectItem value="CA">🇨🇦 Canada</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="mt-3 p-3 bg-card border border-border rounded-lg">
+                    <p className="text-xs text-muted-foreground">Provisioning for</p>
+                    <p className="font-semibold text-sm mt-0.5">{COUNTRIES.find(c => c.code === business.country)?.label || business.country}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+                  <Button variant="outline" onClick={() => setStep(4)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
                   <Button onClick={handleProvisionPhone} disabled={loading} className="flex-1 gradient-primary border-0 text-white">
                     {loading ? (
                       <span className="flex items-center gap-2">
@@ -396,15 +596,15 @@ export default function Onboarding() {
                   </Button>
                 </div>
                 <button
-                  onClick={() => { setStep(5); base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true }); }}
+                  onClick={() => { setStep(6); base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true }); }}
                   className="w-full text-sm text-muted-foreground hover:text-foreground text-center">
                   Skip for now →
                 </button>
               </div>
             )}
 
-            {/* ── Step 5: Done ── */}
-            {step === 5 && (
+            {/* ── Step 6: Done ── */}
+            {step === 6 && (
               <div className="text-center space-y-5">
                 <div className="w-16 h-16 gradient-primary rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="w-8 h-8 text-white" />
