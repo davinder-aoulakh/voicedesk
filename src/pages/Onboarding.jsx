@@ -366,27 +366,62 @@ export default function Onboarding() {
         <span className="font-syne font-bold text-lg">VoiceDesk</span>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        {/* Stepper */}
-        <div className="flex items-center gap-1.5 mb-10 flex-wrap justify-center">
-          {steps.map((s, i) => {
-            const Icon = s.icon;
-            const done   = step > s.id;
-            const active = step === s.id;
-            return (
-              <div key={s.id} className="flex items-center gap-1.5">
-                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  active ? 'bg-primary text-primary-foreground' :
-                  done   ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'
-                }`}>
-                  <Icon className="w-3 h-3" />
-                  <span className="hidden sm:inline">{s.label}</span>
+      <div className="flex-1 flex flex-col items-center px-6 py-10">
+
+        {/* Welcome header — hidden on step 6 */}
+        {step < 6 && (
+          <div className="w-full max-w-xl text-center mb-6">
+            <h1 className="text-2xl md:text-3xl font-syne font-bold">Welcome to VoiceDesk!</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              You're on the{' '}
+              <span className="font-bold" style={{ color: '#6C3BFF' }}>Starter</span>
+              {' '}plan •{' '}
+              <span className="text-muted-foreground">Monthly billing</span>
+            </p>
+          </div>
+        )}
+
+        {/* Numbered stepper — hidden on step 6 */}
+        {step < 6 && (
+          <div className="flex items-start gap-0 mb-8">
+            {steps.filter(s => s.id < 6).map((s, i, arr) => {
+              const done   = step > s.id;
+              const active = step === s.id;
+              return (
+                <div key={s.id} className="flex items-start">
+                  <div className="flex flex-col items-center">
+                    {/* Circle */}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
+                      style={
+                        done   ? { background: '#111827', color: '#fff' } :
+                        active ? { background: '#111827', color: '#fff' } :
+                                 { background: '#F3F4F6', color: '#9CA3AF', border: '1.5px solid #D1D5DB' }
+                      }
+                    >
+                      {done ? (
+                        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                          <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ) : s.id}
+                    </div>
+                    {/* Label */}
+                    <span className={`hidden sm:block text-[10px] mt-1 font-medium text-center w-14 leading-tight ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {/* Connector line */}
+                  {i < arr.length - 1 && (
+                    <div
+                      className="h-px w-8 mt-4 transition-all"
+                      style={{ background: done ? '#111827' : '#D1D5DB' }}
+                    />
+                  )}
                 </div>
-                {i < steps.length - 1 && <div className={`w-5 h-px ${done ? 'bg-success' : 'bg-border'}`} />}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           <motion.div key={step} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
@@ -756,6 +791,28 @@ export default function Onboarding() {
 
           </motion.div>
         </AnimatePresence>
+
+        {/* Plan features card — shown on steps 1–5 */}
+        {step < 6 && (
+          <div className="w-full max-w-xl mt-4 border border-border rounded-xl p-4 bg-card">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-bold text-sm">Starter</span>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white" style={{ background: '#6C3BFF' }}>Monthly</span>
+            </div>
+            <div className="space-y-2">
+              {['Booking Management', 'Staff & Services Management', 'AI Voice Agent Included'].map(feature => (
+                <div key={feature} className="flex items-center gap-2.5">
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: '#6C3BFF' }}>
+                    <svg width="8" height="7" viewBox="0 0 8 7" fill="none">
+                      <path d="M1 3.5L3 5.5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <span className="text-sm text-muted-foreground">{feature}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
