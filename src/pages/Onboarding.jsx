@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ChevronRight, ChevronLeft, Building2, Bot, Phone, CheckCircle, Tag, MapPin, Globe } from 'lucide-react';
+import { Zap, ChevronRight, ChevronLeft, Building2, Bot, Phone, CheckCircle, Tag, MapPin, Globe, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { getTemplate } from '@/lib/industryTemplates';
@@ -134,6 +134,10 @@ export default function Onboarding() {
   });
   const [createdBusiness, setCreatedBusiness] = useState(null);
   const [phoneNumber, setPhoneNumber]         = useState(null);
+  const [availableNumbers, setAvailableNumbers] = useState([]);
+  const [numbersLoading, setNumbersLoading]     = useState(false);
+  const [numbersError, setNumbersError]         = useState(null);
+  const [selectedNumber, setSelectedNumber]     = useState(null);
 
   // ── Step 1 → 2 ────────────────────────────────────────────────────────────
   const handleNameNext = () => {
@@ -255,6 +259,7 @@ export default function Onboarding() {
 
     await base44.entities.Agent.create({ ...agentData, vapi_assistant_id: vapiId, status: vapiId ? 'active' : 'draft' });
     setLoading(false);
+    fetchNumbers(business.country || 'AU');
     setStep(5);
   };
 
@@ -263,7 +268,9 @@ export default function Onboarding() {
     setLoading(true);
     try {
       const provRes = await base44.functions.invoke('provisionPhoneNumber', {
-        business_id: createdBusiness.id, country: business.country || 'AU',
+        business_id: createdBusiness.id,
+        country: selectedNumber?.country_code || business.country || 'AU',
+        phone_number: selectedNumber?.phone_number || null,
       });
       const { phone_number, phone_sid } = provRes.data;
       setPhoneNumber(phone_number);
@@ -287,6 +294,35 @@ export default function Onboarding() {
     }
     setLoading(false);
     setStep(6);
+  };
+
+  // ── Phone number helpers ───────────────────────────────────────────────────
+  function formatPhoneLocal(e164, countryCode) {
+    if (countryCode === 'AU') {
+      const digits = e164.replace('+61', '0');
+      if (digits.length === 10) return '(' + digits.slice(0,2) + ') ' + digits.slice(2,6) + ' ' + digits.slice(6);
+    }
+    if (countryCode === 'US' || countryCode === 'CA') {
+      const digits = e164.replace(/^\+1/, '');
+      return '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
+    }
+    return e164;
+  }
+
+  const FLAG_MAP = { AU: '🇦🇺', US: '🇺🇸', GB: '🇬🇧', NZ: '🇳🇿', CA: '🇨🇦', IE: '🇮🇪', DE: '🇩🇪', FR: '🇫🇷', SG: '🇸🇬', IN: '🇮🇳', ZA: '🇿🇦' };
+
+  const fetchNumbers = async (countryCode) => {
+    setNumbersLoading(true);
+    setNumbersError(null);
+    setAvailableNumbers([]);
+    setSelectedNumber(null);
+    try {
+      const res = await base44.functions.invoke('searchAvailableNumbers', { country_code: countryCode || 'AU' });
+      setAvailableNumbers(res.data?.numbers || []);
+    } catch (e) {
+      setNumbersError('Unable to load numbers. Try a different country or skip for now.');
+    }
+    setNumbersLoading(false);
   };
 
   const isWideStep = step === 2;
@@ -566,33 +602,105 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* ── Step 5: Phone ── */}
+            {/* ── Step 5: Phone Number Picker ── */}
             {step === 5 && (
               <div className="space-y-5">
                 <div>
-                  <h2 className="text-2xl font-syne font-bold">Get your AI phone number</h2>
-                  <p className="text-muted-foreground text-sm mt-1">We'll provision a dedicated number for your AI agent.</p>
-                </div>
-                <div className="p-5 rounded-xl border border-border bg-secondary/30">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-2 mb-1">
                     <Phone className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Phone Number Provisioning</span>
+                    <h2 className="text-2xl font-syne font-bold">Choose Your AI Agent Phone Number</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground">We'll assign you a local phone number via Twilio. Your AI agent will answer all calls to this number automatically.</p>
-                  <div className="mt-3 p-3 bg-card border border-border rounded-lg">
-                    <p className="text-xs text-muted-foreground">Provisioning for</p>
-                    <p className="font-semibold text-sm mt-0.5">{COUNTRIES.find(c => c.code === business.country)?.label || business.country}</p>
-                  </div>
+                  <p className="text-muted-foreground text-sm">Select a phone number for your AI agent. You can also forward your existing business number to this number so customers reach your AI receptionist automatically.</p>
                 </div>
-                <div className="flex gap-3">
+
+                {/* Country selector */}
+                <div>
+                  <Label>Country</Label>
+                  <Select
+                    value={business.country}
+                    onValueChange={v => { setBusiness(b => ({ ...b, country: v })); fetchNumbers(v); }}
+                  >
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Number list */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">Available Numbers</p>
+                    <button onClick={() => fetchNumbers(business.country)} disabled={numbersLoading}
+                      className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50">
+                      <RefreshCw className={`w-4 h-4 text-muted-foreground ${numbersLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+
+                  {numbersLoading && (
+                    <div className="flex items-center gap-3 py-8 justify-center text-muted-foreground text-sm">
+                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      Fetching available numbers in {COUNTRIES.find(c => c.code === business.country)?.label?.replace(/^.+?\s/, '') || business.country}…
+                    </div>
+                  )}
+
+                  {numbersError && !numbersLoading && (
+                    <div className="py-6 text-center text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4">
+                      {numbersError}
+                    </div>
+                  )}
+
+                  {!numbersLoading && !numbersError && availableNumbers.length === 0 && (
+                    <div className="py-8 text-center text-sm text-muted-foreground border border-border rounded-xl">
+                      No numbers loaded yet.{' '}
+                      <button onClick={() => fetchNumbers(business.country)} className="text-primary underline">Fetch numbers</button>
+                    </div>
+                  )}
+
+                  {!numbersLoading && availableNumbers.length > 0 && (
+                    <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                      {availableNumbers.map((num, i) => {
+                        const isSelected = selectedNumber?.phone_number === num.phone_number;
+                        const flag = FLAG_MAP[num.country_code || business.country] || '📞';
+                        const formatted = formatPhoneLocal(num.phone_number, num.country_code || business.country);
+                        return (
+                          <button key={i} onClick={() => setSelectedNumber(num)}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all"
+                            style={isSelected ? { borderColor: '#6C3BFF', background: '#FAF5FF' } : {}}>
+                            <span className="text-xl shrink-0">{flag}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm">{formatted}</p>
+                              {num.region && <p className="text-xs text-muted-foreground">{num.region}</p>}
+                            </div>
+                            {isSelected && (
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#6C3BFF' }}>
+                                <CheckCircle className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Selected confirmation */}
+                  {selectedNumber && (
+                    <div className="flex items-center gap-2 mt-3 text-sm text-success font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      Selected: {FLAG_MAP[selectedNumber.country_code || business.country] || '📞'} {formatPhoneLocal(selectedNumber.phone_number, selectedNumber.country_code || business.country)}{selectedNumber.region ? ` — ${selectedNumber.region}` : ''}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-1">
                   <Button variant="outline" onClick={() => setStep(4)} className="flex-1"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-                  <Button onClick={handleProvisionPhone} disabled={loading} className="flex-1 gradient-primary border-0 text-white">
+                  <Button onClick={handleProvisionPhone} disabled={!selectedNumber || loading} className="flex-1 gradient-primary border-0 text-white">
                     {loading ? (
                       <span className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Provisioning…
+                        Setting up…
                       </span>
-                    ) : <>Get Phone Number <ChevronRight className="w-4 h-4 ml-1" /></>}
+                    ) : 'Complete Setup'}
                   </Button>
                 </div>
                 <button

@@ -14,25 +14,30 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { business_id, country = 'AU' } = await req.json();
+    const { business_id, country = 'AU', phone_number: requestedNumber } = await req.json();
 
     const ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
     const AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
     const credentials = btoa(`${ACCOUNT_SID}:${AUTH_TOKEN}`);
     const countryConfig = COUNTRY_AREA_CODES[country] || COUNTRY_AREA_CODES['AU'];
 
-    // Search for available numbers
-    const searchRes = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/AvailablePhoneNumbers/${countryConfig.countryCode}/Local.json?VoiceEnabled=true&SmsEnabled=true&Limit=5`,
-      { headers: { 'Authorization': `Basic ${credentials}` } }
-    );
+    let phoneNumber;
 
-    const searchData = await searchRes.json();
-    if (!searchRes.ok || !searchData.available_phone_numbers?.length) {
-      return Response.json({ error: 'No available numbers found', details: searchData }, { status: 400 });
+    if (requestedNumber) {
+      // Use the specific number the user selected
+      phoneNumber = requestedNumber;
+    } else {
+      // Auto-select: search for first available number
+      const searchRes = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/AvailablePhoneNumbers/${countryConfig.countryCode}/Local.json?VoiceEnabled=true&SmsEnabled=true&Limit=5`,
+        { headers: { 'Authorization': `Basic ${credentials}` } }
+      );
+      const searchData = await searchRes.json();
+      if (!searchRes.ok || !searchData.available_phone_numbers?.length) {
+        return Response.json({ error: 'No available numbers found', details: searchData }, { status: 400 });
+      }
+      phoneNumber = searchData.available_phone_numbers[0].phone_number;
     }
-
-    const phoneNumber = searchData.available_phone_numbers[0].phone_number;
 
     // Purchase the number
     const purchaseRes = await fetch(
