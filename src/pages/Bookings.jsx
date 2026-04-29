@@ -318,12 +318,18 @@ export default function Bookings() {
       })()}
 
       {/* Calendar view */}
-      {viewMode !== 'list' ? (
+      {viewMode === 'month' ? (
         loading ? (
           <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
         ) : (
-          <CalendarView bookings={bookings} onSelectBooking={setModalBooking} />
+          <CalendarView
+            bookings={bookings}
+            onSelectBooking={setModalBooking}
+            onDayClick={(d) => { setSelectedDate(d); setViewMode('day'); }}
+          />
         )
+      ) : viewMode !== 'list' ? (
+        <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
       ) : (
         <>
           {/* Filters */}
