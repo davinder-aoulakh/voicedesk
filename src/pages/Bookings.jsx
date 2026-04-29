@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap, XCircle, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -138,6 +139,9 @@ export default function Bookings() {
   const [businessId, setBusinessId] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'day' | 'week' | 'month'
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [timeFilter, setTimeFilter] = useState('any');
+  const [upcomingFilter, setUpcomingFilter] = useState('upcoming');
+  const [showCancelled, setShowCancelled] = useState(false);
 
   const load = async () => {
     const user = await base44.auth.me();
@@ -152,14 +156,39 @@ export default function Bookings() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
+    const now = new Date();
     let data = bookings;
+
+    // Upcoming / Past
+    if (upcomingFilter === 'upcoming') data = data.filter(b => !b.scheduled_at || new Date(b.scheduled_at) >= now);
+    else if (upcomingFilter === 'past') data = data.filter(b => b.scheduled_at && new Date(b.scheduled_at) < now);
+
+    // Status
     if (statusFilter !== 'all') data = data.filter(b => b.status === statusFilter);
+
+    // Show cancelled toggle
+    if (!showCancelled && statusFilter === 'all') data = data.filter(b => b.status !== 'cancelled');
+
+    // Time of day
+    if (timeFilter !== 'any') {
+      data = data.filter(b => {
+        if (!b.scheduled_at) return false;
+        const h = new Date(b.scheduled_at).getHours();
+        if (timeFilter === 'morning')   return h >= 6  && h < 12;
+        if (timeFilter === 'afternoon') return h >= 12 && h < 17;
+        if (timeFilter === 'evening')   return h >= 17 && h < 21;
+        return true;
+      });
+    }
+
+    // Search
     if (search) data = data.filter(b =>
       (b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
       (b.customer_phone || '').includes(search)
     );
+
     setFiltered(data);
-  }, [search, statusFilter, bookings]);
+  }, [search, statusFilter, bookings, upcomingFilter, timeFilter, showCancelled]);
 
   const updateStatus = async (id, status) => {
     await base44.entities.Booking.update(id, { status });
@@ -298,18 +327,41 @@ export default function Bookings() {
       ) : (
         <>
           {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-2 mb-6">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers..." className="pl-9" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search bookings..." className="pl-9" />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={upcomingFilter} onValueChange={setUpcomingFilter}>
+                <SelectTrigger className="w-auto h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="past">Past</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={timeFilter} onValueChange={setTimeFilter}>
+                <SelectTrigger className="w-auto h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any Time</SelectItem>
+                  <SelectItem value="morning">Morning (6am–12pm)</SelectItem>
+                  <SelectItem value="afternoon">Afternoon (12pm–5pm)</SelectItem>
+                  <SelectItem value="evening">Evening (5pm–9pm)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-auto h-8 text-xs"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <Switch checked={showCancelled} onCheckedChange={setShowCancelled} />
+                <span className="text-xs text-muted-foreground">Show Cancelled</span>
+              </div>
+            </div>
           </div>
 
           {/* List */}
