@@ -243,20 +243,46 @@ export default function Onboarding() {
   const handleCreateAgent = async () => {
     if (!createdBusiness) return;
     setLoading(true);
-    const greeting     = agent.greeting_message || `Hi! You've reached ${business.name}. I'm ${agent.name}, your AI assistant. How can I help you today?`;
-    const systemPrompt = `You are ${agent.name}, a professional AI receptionist for ${business.name}, a ${business.business_type || business.industry} business. ${agent.persona || 'Be friendly, helpful, and professional.'} Help callers with bookings, enquiries, and information about the business.`;
+
+    const greeting = agent.greeting_message || `Hi! You've reached ${business.name}. I'm ${agent.name}, your AI assistant. How can I help you today?`;
+
+    // Fetch seeded services and staff to enrich the system prompt
+    const [seededServices, seededStaff] = await Promise.all([
+      base44.entities.Service.filter({ business_id: createdBusiness.id }),
+      base44.entities.Staff.filter({ business_id: createdBusiness.id }),
+    ]);
+
+    const servicesList = seededServices.map(s =>
+      s.name + (s.duration_minutes ? ` (${s.duration_minutes}min)` : '') + (s.price ? ` - $${s.price}` : '')
+    ).join(', ') || 'various services';
+
+    const staffNames = seededStaff.map(s =>
+      s.name + (s.role ? ` (${s.role})` : '')
+    ).join(', ') || 'our team';
+
+    const richSystemPrompt = `You are ${agent.name || 'an AI receptionist'} for ${business.name}, a ${business.business_type || business.industry} business located in ${business.location_name || business.name}, ${business.state || ''} ${business.country || ''}.
+
+Services we offer: ${servicesList}.
+Our team: ${staffNames}.
+
+You help customers with bookings, enquiries, and information. When booking, collect: customer name, phone, service requested, preferred date and time. Be friendly, professional, and helpful. If asked about pricing or availability, refer to the services list above.`;
 
     const agentData = {
       business_id: createdBusiness.id, name: agent.name, voice_id: agent.voice_id,
       voice_provider: agent.voice_provider, greeting_message: greeting,
-      system_prompt: systemPrompt, persona: agent.persona, services: agent.services, status: 'draft',
+      system_prompt: richSystemPrompt, persona: agent.persona, services: agent.services,
+      personality_traits: ['Friendly', 'Professional', 'Helpful'],
+      tone_of_voice: 'Warm',
+      status: 'draft',
     };
 
     let vapiId = null;
     try {
       const res = await base44.functions.invoke('createVapiAssistant', {
         business_id: createdBusiness.id, name: agent.name, voice_id: agent.voice_id,
-        system_prompt: systemPrompt, greeting_message: greeting,
+        system_prompt: richSystemPrompt, greeting_message: greeting,
+        personality_traits: ['Friendly', 'Professional', 'Helpful'],
+        tone_of_voice: 'Warm',
       });
       vapiId = res.data?.assistant_id;
     } catch (e) {
@@ -264,6 +290,11 @@ export default function Onboarding() {
     }
 
     await base44.entities.Agent.create({ ...agentData, vapi_assistant_id: vapiId, status: vapiId ? 'active' : 'draft' });
+
+    if (vapiId) {
+      await base44.entities.Business.update(createdBusiness.id, { vapi_assistant_id: vapiId });
+    }
+
     setLoading(false);
     fetchNumbers(business.country || 'AU');
     setStep(5);
