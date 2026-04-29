@@ -136,7 +136,7 @@ export default function Bookings() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'day' | 'week' | 'month'
 
   const load = async () => {
     const user = await base44.auth.me();
@@ -181,14 +181,19 @@ export default function Bookings() {
         <div className="flex items-center gap-2">
           {/* View toggle */}
           <div className="flex items-center border border-border rounded-lg overflow-hidden bg-card">
-            <button onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <List className="w-3.5 h-3.5" /> List
-            </button>
-            <button onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Calendar className="w-3.5 h-3.5" /> Calendar
-            </button>
+            {[
+              { key: 'list',  icon: List,     label: 'List'  },
+              { key: 'day',   icon: Calendar, label: 'Day'   },
+              { key: 'week',  icon: Calendar, label: 'Week'  },
+              { key: 'month', icon: Calendar, label: 'Month' },
+            ].map(({ key, icon: Icon, label }) => (
+              <button key={key} onClick={() => setViewMode(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${
+                  viewMode === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}>
+                <Icon className="w-3.5 h-3.5" /> {label}
+              </button>
+            ))}
           </div>
           <Button onClick={() => navigate('/services')} variant="outline" className="border-primary/30 bg-accent text-primary gap-1.5 rounded-full">
             <Zap className="w-4 h-4" /> Service Business
@@ -200,7 +205,7 @@ export default function Bookings() {
       </div>
 
       {/* Calendar view */}
-      {viewMode === 'calendar' ? (
+      {viewMode !== 'list' ? (
         loading ? (
           <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
         ) : (
