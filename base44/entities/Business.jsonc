@@ -38,6 +38,10 @@
     "country": {
       "type": "string"
     },
+    "state": {
+      "type": "string",
+      "description": "State or province code, e.g. WA, NSW"
+    },
     "timezone": {
       "type": "string"
     },
