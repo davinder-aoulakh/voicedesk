@@ -7,27 +7,14 @@ import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import SetupGuide from '@/components/dashboard/SetupGuide';
 
-function StatCard({ label, value, sub, icon: Icon, trend, color = 'primary', delay = 0 }) {
+function StatCard({ label, value, sub, desc, delay = 0 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
       className="bg-card border border-border rounded-2xl p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-          color === 'success' ? 'bg-success/10' : color === 'warning' ? 'bg-warning/10' : 'bg-accent'
-        }`}>
-          <Icon className={`w-5 h-5 ${
-            color === 'success' ? 'text-success' : color === 'warning' ? 'text-warning' : 'text-primary'
-          }`} />
-        </div>
-        {trend && (
-          <span className="flex items-center gap-1 text-xs font-medium text-success bg-success/10 px-2 py-1 rounded-full">
-            <ArrowUpRight className="w-3 h-3" />{trend}
-          </span>
-        )}
-      </div>
       <p className="text-3xl font-syne font-bold text-foreground">{value}</p>
-      <p className="text-sm font-medium text-foreground mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      <p className="text-sm font-medium text-foreground mt-1">{label}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+      {desc && <p className="text-xs text-muted-foreground mt-3">{desc}</p>}
     </motion.div>
   );
 }
@@ -36,7 +23,7 @@ export default function Dashboard() {
   const { business } = useOutletContext() || {};
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [stats, setStats] = useState({ calls: 0, bookings: 0, missed: 0, agentStatus: 'draft' });
+  const [stats, setStats] = useState({ calls: 0, bookings: 0, customers: 0, avgDuration: 0, agentStatus: 'draft' });
   const [recentCalls, setRecentCalls] = useState([]);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,18 +37,23 @@ export default function Dashboard() {
       if (!businesses.length) { navigate('/onboarding'); return; }
       const biz = businesses[0];
 
-      const [agents, calls, bookings] = await Promise.all([
+      const [agents, calls, bookings, customers] = await Promise.all([
         base44.entities.Agent.filter({ business_id: biz.id }),
         base44.entities.CallLog.filter({ business_id: biz.id }),
         base44.entities.Booking.filter({ business_id: biz.id }),
+        base44.entities.Customer.filter({ business_id: biz.id }),
       ]);
 
       setHasAgent(agents.length > 0);
-      const missed = calls.filter(c => c.status === 'missed').length;
+      const callsWithDuration = calls.filter(c => c.duration_seconds);
+      const avgDuration = callsWithDuration.length > 0
+        ? Math.round(callsWithDuration.reduce((sum, c) => sum + c.duration_seconds, 0) / callsWithDuration.length)
+        : 0;
       setStats({
         calls: calls.length,
         bookings: bookings.length,
-        missed,
+        customers: customers.length,
+        avgDuration,
         agentStatus: agents[0]?.status || 'draft',
       });
       setRecentCalls(calls.slice(0, 5));
@@ -112,12 +104,11 @@ export default function Dashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Calls" value={stats.calls} icon={Phone} trend="+12%" delay={0} sub="Last 30 days" />
-        <StatCard label="Bookings Made" value={stats.bookings} icon={Calendar} color="success" trend="+8%" delay={0.05} sub="Via AI agent" />
-        <StatCard label="Missed Calls" value={stats.missed} icon={AlertCircle} color="warning" delay={0.1} sub="Follow up needed" />
-        <StatCard label="Agent Status" value={stats.agentStatus === 'active' ? 'Live' : 'Offline'} icon={Bot}
-          color={stats.agentStatus === 'active' ? 'success' : 'primary'} delay={0.15} sub={stats.agentStatus === 'active' ? 'Taking calls now' : 'Not yet activated'} />
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <StatCard label="Bookings" value={stats.bookings} sub="No change this period" desc="Total bookings in the last 30 days" delay={0} />
+        <StatCard label="Customers" value={stats.customers} sub="No change this period" desc="Total customers across all locations" delay={0.05} />
+        <StatCard label="Calls" value={stats.calls} sub="No change this period" desc="Total AI calls in the last 30 days" delay={0.1} />
+        <StatCard label="Duration" value={stats.avgDuration > 0 ? `${stats.avgDuration}s` : '0s'} sub="No change this period" desc="Average duration across all calls" delay={0.15} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
