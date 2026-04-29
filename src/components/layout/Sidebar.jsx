@@ -332,18 +332,6 @@ export default function Sidebar({ business }) {
         </div>
       </div>
 
-      {/* Workspace badge */}
-      {business && (
-        <div className="px-4 py-3 mx-3 mt-4 rounded-lg bg-sidebar-accent">
-          <p className="text-xs text-sidebar-foreground/60 uppercase tracking-widest mb-0.5">Workspace</p>
-          <p className="text-sm font-semibold text-sidebar-accent-foreground truncate">{business.name}</p>
-          <span className="inline-flex items-center gap-1 mt-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-            <span className="text-xs text-sidebar-foreground/60 capitalize">{business.subscription_plan || 'trial'}</span>
-          </span>
-        </div>
-      )}
-
       {/* Nav */}
       <nav className="flex-1 px-3 mt-4 pb-2 space-y-0.5 overflow-y-auto">
         {NAV.map((item, idx) => {
