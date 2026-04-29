@@ -6,6 +6,7 @@ import {
   ChevronDown, Users, Clock, Tag, BookOpen, Wrench,
   Smile, Mic, Contact,
   Phone, PhoneCall, Sun, Moon, Sparkles, MoreHorizontal, User,
+  ChevronLeft, Building2, MapPin, CreditCard,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -296,13 +297,27 @@ function ThemeToggle() {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-export default function Sidebar({ business }) {
+const ORG_SETTINGS_PATHS = ['/settings/business-info', '/settings/locations', '/settings/billing'];
+
+const ORG_NAV = [
+  { label: 'Business Info', icon: Building2,  path: '/settings/business-info' },
+  { label: 'Locations',     icon: MapPin,      path: '/settings/locations' },
+  { label: 'Billing',       icon: CreditCard,  path: '/settings/billing' },
+];
+
+export default function Sidebar({ business, primaryLocation }) {
   const [agentOpen, setAgentOpen] = useState(true);
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isOrgSettings = ORG_SETTINGS_PATHS.some(p => location.pathname.startsWith(p));
 
   const planLabel = business?.subscription_plan
     ? business.subscription_plan.charAt(0).toUpperCase() + business.subscription_plan.slice(1)
     : null;
+
+  const backLabel = primaryLocation?.name || business?.name || 'Settings';
 
   return (
     <aside className="w-64 min-w-[16rem] bg-sidebar flex flex-col sidebar-glow relative z-10 h-full overflow-y-auto">
@@ -325,23 +340,43 @@ export default function Sidebar({ business }) {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 mt-4 pb-2 space-y-0.5 overflow-y-auto">
-        {NAV.map((item, idx) => {
-          if (item.type === 'group') return <GroupLabel key={idx} label={item.label} />;
-          if (item.type === 'accordion') {
-            return (
-              <AccordionNavItem
-                key={idx}
-                item={item}
-                open={agentOpen}
-                onToggle={() => setAgentOpen(v => !v)}
-              />
-            );
-          }
-          return <NavLink key={item.path} {...item} />;
-        })}
-      </nav>
+      {isOrgSettings ? (
+        /* ── Org Settings contextual nav ── */
+        <nav className="flex-1 px-3 mt-3 pb-2 space-y-0.5 overflow-y-auto">
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex items-center gap-2 px-2 py-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-accent-foreground w-full rounded-lg hover:bg-sidebar-accent transition-colors mb-1"
+          >
+            <ChevronLeft className="w-4 h-4 shrink-0" />
+            <span className="truncate">{backLabel}</span>
+          </button>
+
+          <GroupLabel label="Organization Settings" />
+
+          {ORG_NAV.map(item => (
+            <NavLink key={item.path} {...item} />
+          ))}
+        </nav>
+      ) : (
+        /* ── Normal nav ── */
+        <nav className="flex-1 px-3 mt-4 pb-2 space-y-0.5 overflow-y-auto">
+          {NAV.map((item, idx) => {
+            if (item.type === 'group') return <GroupLabel key={idx} label={item.label} />;
+            if (item.type === 'accordion') {
+              return (
+                <AccordionNavItem
+                  key={idx}
+                  item={item}
+                  open={agentOpen}
+                  onToggle={() => setAgentOpen(v => !v)}
+                />
+              );
+            }
+            return <NavLink key={item.path} {...item} />;
+          })}
+        </nav>
+      )}
 
       {/* Widgets */}
       <AINumberWidget business={business} />

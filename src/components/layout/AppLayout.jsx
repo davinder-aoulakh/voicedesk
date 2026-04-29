@@ -39,7 +39,7 @@ export default function AppLayout() {
         transform transition-transform duration-300
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <Sidebar business={business} />
+        <Sidebar business={business} primaryLocation={primaryLocation} />
       </div>
 
       {/* Main */}
