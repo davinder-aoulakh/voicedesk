@@ -1,18 +1,24 @@
 import { Outlet } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
+import TopBar from './TopBar';
 import { base44 } from '@/api/base44Client';
 import { Menu, X } from 'lucide-react';
 
 export default function AppLayout() {
   const [business, setBusiness] = useState(null);
+  const [primaryLocation, setPrimaryLocation] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const loadBusiness = async () => {
       const user = await base44.auth.me();
       const businesses = await base44.entities.Business.filter({ owner_id: user.id });
-      if (businesses.length > 0) setBusiness(businesses[0]);
+      if (!businesses.length) return;
+      const biz = businesses[0];
+      setBusiness(biz);
+      const locations = await base44.entities.Location.filter({ business_id: biz.id, is_primary: true });
+      setPrimaryLocation(locations[0] || null);
     };
     loadBusiness();
   }, []);
@@ -45,6 +51,8 @@ export default function AppLayout() {
           </button>
           <span className="font-syne font-semibold text-foreground">VoiceDesk</span>
         </div>
+
+        <TopBar business={business} primaryLocation={primaryLocation} />
 
         <main className="flex-1 overflow-y-auto">
           <Outlet context={{ business, setBusiness }} />
