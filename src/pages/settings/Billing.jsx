@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { CreditCard, Check, Zap, Phone, Users, BookOpen, Bot, ChevronUp } from 'lucide-react';
+import { CreditCard, Check, Zap, Phone, Users, BookOpen, Bot, ChevronUp, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -95,6 +96,7 @@ function UsageStat({ label, used, limit, color }) {
 }
 
 export default function Billing() {
+  const navigate = useNavigate();
   const [business, setBusiness] = useState(null);
   const [yearly, setYearly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -126,6 +128,10 @@ export default function Billing() {
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 group">
+        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+        Back to Settings
+      </button>
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-syne font-bold">Billing & Plans</h1>
         <p className="text-muted-foreground mt-1 text-sm">Choose the plan that fits your business</p>

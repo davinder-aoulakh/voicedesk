@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   Building2, Save, Globe, Sparkles, Quote, Pencil, Check, X,
-  Upload, Info, HelpCircle, ChevronRight
+  Upload, Info, HelpCircle, ChevronRight, ChevronLeft
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -144,6 +145,7 @@ function TourTooltip({ step, total, onNext, onClose }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BusinessInfo() {
+  const navigate = useNavigate();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -236,6 +238,10 @@ Make it more compelling, professional, and memorable. Keep a similar length. Ret
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 group">
+        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+        Back to {form?.location_name || form?.name || 'Settings'}
+      </button>
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>

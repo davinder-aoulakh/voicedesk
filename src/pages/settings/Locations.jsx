@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { MapPin, Plus, Pencil, Trash2, Phone, Clock, Building2 } from 'lucide-react';
+import { MapPin, Plus, Pencil, Trash2, Phone, Clock, Building2, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,6 +98,7 @@ function LocationForm({ location, onClose, onSave }) {
 }
 
 export default function Locations() {
+  const navigate = useNavigate();
   const [locations, setLocations] = useState([]);
   const [businessId, setBusinessId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,6 +136,10 @@ export default function Locations() {
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 group">
+        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+        Back to Settings
+      </button>
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-syne font-bold">Locations</h1>

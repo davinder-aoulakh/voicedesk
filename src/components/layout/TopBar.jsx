@@ -18,10 +18,13 @@ export default function TopBar({ business, primaryLocation }) {
           <ChevronLeft className="w-5 h-5 text-muted-foreground" />
         </button>
 
-        <button className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition-colors min-w-0">
-          <span className="text-sm text-foreground font-normal truncate">{businessName}</span>
-          <span className="text-muted-foreground text-sm mx-0.5">/</span>
-          <span className="text-sm text-foreground font-normal truncate">{locationName}</span>
+        <button
+          onClick={() => navigate('/settings/business-info')}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition-colors min-w-0"
+        >
+          <span className="text-sm text-muted-foreground truncate">{businessName}</span>
+          <span className="text-muted-foreground/50 text-sm mx-0.5">/</span>
+          <span className="text-sm font-medium text-foreground truncate">{locationName}</span>
           <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 ml-0.5" />
         </button>
       </div>
