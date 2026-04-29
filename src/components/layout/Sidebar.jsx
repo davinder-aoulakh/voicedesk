@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Calendar, Bot, Settings, Zap, LogOut,
   ChevronDown, Users, Clock, Tag, BookOpen, Wrench,
-  MapPin, CreditCard, Building2, Smile, Mic, Contact,
-  Phone, PhoneCall, Sun, Moon, Sparkles, MoreHorizontal, User, Globe,
+  Smile, Mic, Contact,
+  Phone, PhoneCall, Sun, Moon, Sparkles, MoreHorizontal, User,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -37,14 +37,7 @@ const NAV = [
   { label: 'AI Tools',   icon: Wrench,   path: '/agent/tools' },
 
   { type: 'group', label: 'Configure' },
-  { label: 'Phone Number', icon: Phone, path: '/phone' },
-  { label: 'Booking Page', icon: Globe, path: '/booking-page' },
   { label: 'Settings', icon: Settings, path: '/settings' },
-
-  { type: 'group', label: 'Organization Settings' },
-  { label: 'Business Info', icon: Building2,  path: '/settings/business-info' },
-  { label: 'Locations',     icon: MapPin,     path: '/settings/locations' },
-  { label: 'Billing',       icon: CreditCard, path: '/settings/billing' },
 ];
 
 // ─── Country flag helper ──────────────────────────────────────────────────────
