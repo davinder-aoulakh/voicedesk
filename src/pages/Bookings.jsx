@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid } from 'lucide-react';
+import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -127,6 +127,7 @@ function BookingModal({ booking, businessId, onClose, onSave }) {
 }
 
 export default function Bookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState('');
@@ -170,12 +171,12 @@ export default function Bookings() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-syne font-bold">Bookings</h1>
-          <p className="text-muted-foreground mt-1">Manage all customer appointments</p>
+          <h1 className="text-2xl md:text-3xl font-syne font-bold">Booking</h1>
+          <p className="text-muted-foreground mt-1">Manage your bookings</p>
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
@@ -189,6 +190,9 @@ export default function Bookings() {
               <Calendar className="w-3.5 h-3.5" /> Calendar
             </button>
           </div>
+          <Button onClick={() => navigate('/services')} variant="outline" className="border-primary/30 bg-accent text-primary gap-1.5 rounded-full">
+            <Zap className="w-4 h-4" /> Service Business
+          </Button>
           <Button onClick={() => setShowNewModal(true)} className="gradient-primary border-0 text-white shadow-lg shadow-primary/20">
             <Plus className="w-4 h-4 mr-2" /> New Booking
           </Button>
