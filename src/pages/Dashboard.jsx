@@ -35,6 +35,7 @@ function StatCard({ label, value, sub, icon: Icon, trend, color = 'primary', del
 export default function Dashboard() {
   const { business } = useOutletContext() || {};
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ calls: 0, bookings: 0, missed: 0, agentStatus: 'draft' });
   const [recentCalls, setRecentCalls] = useState([]);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
@@ -44,6 +45,7 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       const user = await base44.auth.me();
+      setUser(user);
       const businesses = await base44.entities.Business.filter({ owner_id: user.id });
       if (!businesses.length) { navigate('/onboarding'); return; }
       const biz = businesses[0];
@@ -81,9 +83,12 @@ export default function Dashboard() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-syne font-bold">
-          {business ? `Welcome back${business.name ? `, ${business.name}` : ''}` : 'Dashboard'}
+          {(() => {
+            const firstName = user?.full_name?.split(' ')[0] || user?.first_name || user?.name?.split(' ')[0] || '';
+            return firstName ? `Welcome back, ${firstName}` : business ? `Welcome back, ${business.name}` : 'Welcome back';
+          })()}
         </h1>
-        <p className="text-muted-foreground mt-1">Here's what's happening with your AI agent today.</p>
+        <p className="text-muted-foreground mt-1">Here's an overview of your business performance.</p>
       </div>
 
       {/* Setup Guide */}
