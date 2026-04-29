@@ -341,19 +341,18 @@ You help customers with bookings, enquiries, and information. When booking, coll
 
         setLinkStatus('linking');
         if (vapiAssistantId && phone_number && phone_sid) {
-          const linkRes = await base44.functions.invoke('linkVapiPhoneNumber', {
-            business_id: createdBusiness.id, assistant_id: vapiAssistantId,
-            twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
+          const activateRes = await base44.functions.invoke('activateVapiAgent', {
+            business_id: createdBusiness.id,
+            assistant_id: vapiAssistantId,
+            phone_number,
+            phone_sid,
           });
-          const vapiPhoneNumberId = linkRes.data?.vapi_phone_number_id;
-          await Promise.all([
-            base44.entities.Business.update(createdBusiness.id, {
-              twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
-              onboarding_completed: true,
-              ...(vapiPhoneNumberId && { vapi_phone_number_id: vapiPhoneNumberId }),
-            }),
-            agents[0]?.id && base44.entities.Agent.update(agents[0].id, { status: 'active' }),
-          ]);
+          const vapiPhoneNumberId = activateRes.data?.vapi_phone_number_id;
+          await base44.entities.Business.update(createdBusiness.id, {
+            twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
+            onboarding_completed: true,
+            ...(vapiPhoneNumberId && { vapi_phone_number_id: vapiPhoneNumberId }),
+          });
           setLinkStatus('done');
         } else {
           await base44.entities.Business.update(createdBusiness.id, {

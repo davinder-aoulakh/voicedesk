@@ -133,16 +133,16 @@ function NumberPicker({ defaultCountry, business, agent, onProvisioned }) {
         twilio_phone_sid: phone_sid,
       });
 
-      // Link to VAPI if agent exists
+      // Atomically link to VAPI if agent exists
       if (agent?.vapi_assistant_id) {
-        const linkRes = await base44.functions.invoke('linkVapiPhoneNumber', {
+        const activateRes = await base44.functions.invoke('activateVapiAgent', {
           business_id: business.id,
           assistant_id: agent.vapi_assistant_id,
-          twilio_phone_number: phone_number,
-          twilio_phone_sid: phone_sid,
+          phone_number,
+          phone_sid,
         });
-        if (linkRes.data?.error) {
-          toast.warning('Number provisioned but VAPI link failed: ' + linkRes.data.error);
+        if (activateRes.data?.error) {
+          toast.warning('Number provisioned but VAPI link failed: ' + activateRes.data.error);
         }
       }
 
