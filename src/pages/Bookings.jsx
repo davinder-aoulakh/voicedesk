@@ -372,9 +372,17 @@ export default function Bookings() {
               ))}
             </div>
           ) : filtered.filter(b => !b.scheduled_at || isSameDay(new Date(b.scheduled_at), selectedDate)).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-2xl">
-              <Calendar className="w-12 h-12 text-muted-foreground/30 mb-4" />
-              <p className="text-muted-foreground">No bookings found</p>
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-card border border-border rounded-2xl">
+              <div className="w-16 h-16 rounded-2xl bg-accent flex items-center justify-center mb-4">
+                <Calendar className="w-8 h-8 text-primary" />
+              </div>
+              <p className="font-syne font-semibold text-lg text-foreground">No bookings found</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                There are no bookings scheduled for this date range.
+              </p>
+              <Button onClick={() => setShowNewModal(true)} className="mt-5 gradient-primary border-0 text-white">
+                <Plus className="w-4 h-4 mr-2" /> Add Booking
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
