@@ -88,7 +88,7 @@ function computeCompleted(data) {
   return {
     business_info: !!(business?.name && business?.industry && business?.address && business?.timezone && business?.logo_url),
     location:      locations?.length > 0,
-    availability:  !!(business?.business_hours && Object.values(business.business_hours).some(d => d?.open)),
+    availability:  !!(business?.business_hours && Object.values(business.business_hours).some(d => d?.slots?.length > 0 || d?.open === true)),
     resources:     services?.length > 0 && staff?.length > 0,
     agent:         !!agent?.vapi_assistant_id,
     tools:         (agent?.enabled_tools || []).length > 0,
