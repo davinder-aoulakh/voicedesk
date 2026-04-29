@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap, XCircle } from 'lucide-react';
+import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap, XCircle, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { format } from 'date-fns';
+import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay } from 'date-fns';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import CalendarView from '@/components/bookings/CalendarView';
@@ -137,6 +137,7 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'day' | 'week' | 'month'
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const load = async () => {
     const user = await base44.auth.me();
@@ -256,6 +257,37 @@ export default function Bookings() {
         </div>
       </div>
 
+      {/* Date Navigator */}
+      {(() => {
+        const prev = () => setSelectedDate(d =>
+          viewMode === 'week' ? subWeeks(d, 1) : viewMode === 'month' ? subMonths(d, 1) : subDays(d, 1)
+        );
+        const next = () => setSelectedDate(d =>
+          viewMode === 'week' ? addWeeks(d, 1) : viewMode === 'month' ? addMonths(d, 1) : addDays(d, 1)
+        );
+        const label =
+          viewMode === 'month' ? format(selectedDate, 'MMMM yyyy') :
+          viewMode === 'week'  ? `Week of ${format(selectedDate, 'MMMM d, yyyy')}` :
+          format(selectedDate, 'EEEE, MMMM d, yyyy');
+        return (
+          <div className="flex items-center gap-3 mb-4">
+            <button onClick={prev} className="p-2 rounded-lg border border-border hover:bg-accent transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-semibold text-sm flex-1 text-center md:text-left">{label}</span>
+            <button onClick={() => setSelectedDate(new Date())} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors">
+              Today
+            </button>
+            <button className="p-2 rounded-lg border border-border hover:bg-accent transition-colors">
+              <CalendarIcon className="w-4 h-4" />
+            </button>
+            <button onClick={next} className="p-2 rounded-lg border border-border hover:bg-accent transition-colors">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Calendar view */}
       {viewMode !== 'list' ? (
         loading ? (
@@ -287,14 +319,14 @@ export default function Bookings() {
                 <div key={i} className="h-20 bg-card border border-border rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.filter(b => !b.scheduled_at || isSameDay(new Date(b.scheduled_at), selectedDate)).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-2xl">
               <Calendar className="w-12 h-12 text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground">No bookings found</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {filtered.map((booking, i) => {
+              {filtered.filter(b => !b.scheduled_at || isSameDay(new Date(b.scheduled_at), selectedDate)).map((booking, i) => {
                 const statusConf = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
                 return (
                   <motion.div key={booking.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
