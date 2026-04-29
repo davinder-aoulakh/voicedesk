@@ -119,6 +119,7 @@ async function seedIndustryData(businessId, industry) {
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [step, setStep]         = useState(1);
   const [loading, setLoading]   = useState(false);
   const [seeding, setSeeding]   = useState(false);
@@ -145,6 +146,20 @@ export default function Onboarding() {
   const [showSuccess, setShowSuccess]           = useState(false);
   const [linkStatus, setLinkStatus]             = useState('idle'); // 'idle' | 'provisioning' | 'linking' | 'done' | 'error'
   const apiPromiseRef = useRef(null);
+
+  // ── Guard: redirect already-onboarded users ───────────────────────────────
+  useEffect(() => {
+    const check = async () => {
+      const user = await base44.auth.me();
+      const businesses = await base44.entities.Business.filter({ owner_id: user.id });
+      if (businesses.some(b => b.onboarding_completed === true)) {
+        navigate('/dashboard');
+        return;
+      }
+      setCheckingOnboarding(false);
+    };
+    check();
+  }, []);
 
   // ── Step 1 → 2 ────────────────────────────────────────────────────────────
   const handleNameNext = () => {
@@ -421,6 +436,14 @@ You help customers with bookings, enquiries, and information. When booking, coll
   const tzOptions    = TIMEZONES_BY_COUNTRY[business.country] || ['UTC'];
 
   const step3Valid = business.location_name.trim() && business.state.trim() && business.country && business.timezone;
+
+  if (checkingOnboarding) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
