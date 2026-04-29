@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Calendar, Bot, Settings, Zap, LogOut,
   ChevronDown, Users, Clock, Tag, BookOpen, Wrench,
   MapPin, CreditCard, Building2, Smile, Mic, Contact,
-  Phone, Sun, Moon, Sparkles, MoreHorizontal, User, Globe,
+  Phone, PhoneCall, Sun, Moon, Sparkles, MoreHorizontal, User, Globe,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -14,13 +14,13 @@ import { useAuth } from '@/lib/AuthContext';
 const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Bookings',  icon: Calendar,        path: '/bookings' },
-  { label: 'Call Logs', icon: Phone,           path: '/calls' },
 
   { type: 'group', label: 'Business Operations' },
-  { label: 'Availability', icon: Clock,    path: '/availability' },
-  { label: 'Staff',        icon: Users,    path: '/staff' },
-  { label: 'Services',     icon: Tag,      path: '/services' },
-  { label: 'Customers',    icon: Contact,  path: '/customers' },
+  { label: 'Availability', icon: Clock,      path: '/availability' },
+  { label: 'Staff',        icon: Users,      path: '/staff' },
+  { label: 'Services',     icon: Tag,        path: '/services' },
+  { label: 'Customers',    icon: Contact,    path: '/customers' },
+  { label: 'Call Logs',    icon: PhoneCall,  path: '/calls' },
 
   { type: 'group', label: 'AI Frontdesk' },
   {
