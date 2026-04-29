@@ -345,10 +345,25 @@ export default function Onboarding() {
       const res = await base44.functions.invoke('searchAvailableNumbers', { country_code: countryCode || 'AU' });
       setAvailableNumbers(res.data?.numbers || []);
     } catch (e) {
-      setNumbersError('Unable to load numbers. Try a different country or skip for now.');
+      console.error('searchAvailableNumbers failed:', e);
+      if (e.message && (e.message.includes('credentials') || e.message.includes('500'))) {
+        setNumbersError('Twilio credentials are not configured. Please add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in your Base44 environment variables, then refresh.');
+      } else {
+        setNumbersError('Unable to load numbers: ' + e.message + '. Try a different country or skip for now.');
+      }
     }
     setNumbersLoading(false);
   };
+
+  // Auto-retry fetching numbers if we land on step 5 with no results
+  useEffect(() => {
+    if (step !== 5) return;
+    if (availableNumbers.length > 0 || numbersLoading || numbersError) return;
+    const timer = setTimeout(() => {
+      fetchNumbers(business.country || 'AU');
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [step, availableNumbers.length, numbersLoading, numbersError]);
 
   const isWideStep = step === 2;
   const stateOptions = STATES[business.country] || null;
@@ -705,8 +720,17 @@ export default function Onboarding() {
                   )}
 
                   {numbersError && !numbersLoading && (
-                    <div className="py-6 text-center text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4">
-                      {numbersError}
+                    <div className="space-y-2">
+                      <div className="py-6 text-center text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4">
+                        {numbersError}
+                      </div>
+                      {numbersError.includes('credentials') && (
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-relaxed">
+                          <strong>To fix:</strong> go to Base44 → Settings → Environment Variables and add:<br />
+                          <code className="font-mono">TWILIO_ACCOUNT_SID</code> and <code className="font-mono">TWILIO_AUTH_TOKEN</code> from your Twilio console at{' '}
+                          <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="underline">console.twilio.com</a>
+                        </div>
+                      )}
                     </div>
                   )}
 
