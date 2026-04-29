@@ -86,7 +86,7 @@ const STEPS = [
 function computeCompleted(data) {
   const { business, locations, services, staff, agent, knowledgeCards, setupSteps } = data;
   return {
-    business_info: !!(business?.name && business?.industry && business?.address && business?.timezone && business?.logo_url),
+    business_info: !!(business?.name && business?.industry && business?.timezone),
     location:      locations?.length > 0,
     availability:  !!(business?.business_hours && Object.values(business.business_hours).some(d => d?.slots?.length > 0 || d?.open === true)),
     resources:     services?.length > 0 && staff?.length > 0,
