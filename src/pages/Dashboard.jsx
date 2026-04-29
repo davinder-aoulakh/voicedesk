@@ -105,7 +105,7 @@ export default function Dashboard() {
   }, [filteredBookings, period]);
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-syne font-bold">
