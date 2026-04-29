@@ -1,12 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Phone, Calendar, Clock, Target, Mic } from 'lucide-react';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 import { motion } from 'framer-motion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const COLORS = ['hsl(252,85%,60%)', 'hsl(142,72%,45%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)'];
+
+const DATE_RANGES = [
+  { label: 'Today',       value: 'today',   days: 0 },
+  { label: 'Last 7 days', value: '7d',      days: 6 },
+  { label: 'Last 14 days',value: '14d',     days: 13 },
+  { label: 'Last 30 days',value: '30d',     days: 29 },
+  { label: 'Last 90 days',value: '90d',     days: 89 },
+];
 
 function KpiCard({ label, value, sub, icon: Icon, delay = 0 }) {
   return (
@@ -29,6 +38,7 @@ export default function Analytics() {
   const [calls, setCalls] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState('14d');
 
   useEffect(() => {
     const load = async () => {
@@ -46,11 +56,19 @@ export default function Analytics() {
     load();
   }, []);
 
-  // Daily call volume (last 14 days)
-  const last14 = eachDayOfInterval({ start: subDays(new Date(), 13), end: new Date() });
-  const dailyData = last14.map(day => {
+  // Compute date range boundaries
+  const rangeConfig = DATE_RANGES.find(r => r.value === dateRange) || DATE_RANGES[2];
+  const rangeStart = startOfDay(subDays(new Date(), rangeConfig.days));
+
+  // Filter by date range
+  const filteredCalls = calls.filter(c => c.started_at && new Date(c.started_at) >= rangeStart);
+  const filteredBookings = bookings.filter(b => b.scheduled_at && new Date(b.scheduled_at) >= rangeStart);
+
+  // Daily call volume chart
+  const chartDays = eachDayOfInterval({ start: rangeStart, end: new Date() });
+  const dailyData = chartDays.map(day => {
     const dayStr = format(day, 'MMM d');
-    const dayCalls = calls.filter(c => c.started_at && format(new Date(c.started_at), 'MMM d') === dayStr);
+    const dayCalls = filteredCalls.filter(c => format(new Date(c.started_at), 'MMM d') === dayStr);
     return {
       day: dayStr,
       calls: dayCalls.length,
@@ -61,21 +79,21 @@ export default function Analytics() {
   // Status breakdown
   const statusCounts = ['completed', 'missed', 'in_progress', 'voicemail'].map(s => ({
     name: s.replace('_', ' '),
-    value: calls.filter(c => c.status === s).length,
+    value: filteredCalls.filter(c => c.status === s).length,
   })).filter(s => s.value > 0);
 
   // Sentiment
   const sentimentCounts = ['positive', 'neutral', 'negative'].map(s => ({
     name: s,
-    value: calls.filter(c => c.sentiment === s).length,
+    value: filteredCalls.filter(c => c.sentiment === s).length,
   }));
 
   // KPIs
-  const totalCalls = calls.length;
-  const totalBookings = bookings.length;
-  const conversionRate = totalCalls > 0 ? Math.round((calls.filter(c => c.booking_created).length / totalCalls) * 100) : 0;
-  const avgDuration = calls.filter(c => c.duration_seconds).length > 0
-    ? Math.round(calls.filter(c => c.duration_seconds).reduce((a, c) => a + c.duration_seconds, 0) / calls.filter(c => c.duration_seconds).length)
+  const totalCalls = filteredCalls.length;
+  const totalBookings = filteredBookings.length;
+  const conversionRate = totalCalls > 0 ? Math.round((filteredCalls.filter(c => c.booking_created).length / totalCalls) * 100) : 0;
+  const avgDuration = filteredCalls.filter(c => c.duration_seconds).length > 0
+    ? Math.round(filteredCalls.filter(c => c.duration_seconds).reduce((a, c) => a + c.duration_seconds, 0) / filteredCalls.filter(c => c.duration_seconds).length)
     : 0;
 
   // Voice minutes this month
@@ -85,8 +103,8 @@ export default function Analytics() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const voiceMinutesUsed = Math.round(
-    calls
-      .filter(c => c.started_at && new Date(c.started_at) >= monthStart && c.duration_seconds)
+    filteredCalls
+      .filter(c => c.duration_seconds)
       .reduce((sum, c) => sum + c.duration_seconds, 0) / 60
   );
   const voicePct = voiceLimit > 0 ? Math.min(100, Math.round((voiceMinutesUsed / voiceLimit) * 100)) : 0;
@@ -95,9 +113,21 @@ export default function Analytics() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-syne font-bold">Analytics</h1>
-        <p className="text-muted-foreground mt-1">Performance metrics for your AI agent</p>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-syne font-bold">Analytics</h1>
+          <p className="text-muted-foreground mt-1">Performance metrics for your AI agent</p>
+        </div>
+        <Select value={dateRange} onValueChange={setDateRange}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DATE_RANGES.map(r => (
+              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* KPIs */}
@@ -145,7 +175,7 @@ export default function Analytics() {
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
         {/* Call volume chart */}
         <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6">
-          <h3 className="font-syne font-semibold mb-5">Call Volume — Last 14 Days</h3>
+          <h3 className="font-syne font-semibold mb-5">Call Volume — {rangeConfig.label}</h3>
           {loading ? (
             <div className="h-52 bg-secondary/50 rounded-xl animate-pulse" />
           ) : (
