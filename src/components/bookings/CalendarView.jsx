@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay, isToday, parseISO } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, isToday, parseISO } from 'date-fns';
+import { Calendar } from 'lucide-react';
 
 const STATUS_PILL = {
   pending:   'text-warning bg-warning/10',
@@ -11,8 +9,8 @@ const STATUS_PILL = {
   no_show:   'text-muted-foreground bg-secondary',
 };
 
-export default function CalendarView({ bookings, onSelectBooking, onDayClick }) {
-  const [current, setCurrent] = useState(new Date());
+export default function CalendarView({ bookings, onSelectBooking, onDayClick, selectedDate }) {
+  const current = selectedDate || new Date();
 
   const monthStart = startOfMonth(current);
   const monthEnd = endOfMonth(current);
@@ -44,22 +42,6 @@ export default function CalendarView({ bookings, onSelectBooking, onDayClick }) 
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <h2 className="font-syne font-semibold text-lg">{format(current, 'MMMM yyyy')}</h2>
-        </div>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setCurrent(subMonths(current, 1))}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setCurrent(addMonths(current, 1))}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-border">
         {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (

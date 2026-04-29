@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap, XCircle, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap, XCircle, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay } from 'date-fns';
+import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay, getISOWeek } from 'date-fns';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import CalendarView from '@/components/bookings/CalendarView';
@@ -286,33 +286,38 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Date Navigator */}
-      {(() => {
-        const prev = () => setSelectedDate(d =>
-          viewMode === 'week' ? subWeeks(d, 1) : viewMode === 'month' ? subMonths(d, 1) : subDays(d, 1)
-        );
-        const next = () => setSelectedDate(d =>
-          viewMode === 'week' ? addWeeks(d, 1) : viewMode === 'month' ? addMonths(d, 1) : addDays(d, 1)
-        );
-        const label =
-          viewMode === 'month' ? format(selectedDate, 'MMMM yyyy') :
-          viewMode === 'week'  ? `Week of ${format(selectedDate, 'MMMM d, yyyy')}` :
-          format(selectedDate, 'EEEE, MMMM d, yyyy');
+      {/* Date Navigator — only for non-list views */}
+      {viewMode !== 'list' && (() => {
+        const getDateLabel = (date, mode) => {
+          if (mode === 'day')   return format(date, 'EEE MMM dd yyyy');
+          if (mode === 'week')  return `Week ${getISOWeek(date)} - ${format(date, 'yyyy')}`;
+          if (mode === 'month') return format(date, 'MMMM yyyy');
+          return '';
+        };
+        const navigateDate = (dir) => {
+          setSelectedDate(d => {
+            if (viewMode === 'day')   return dir === 'prev' ? subDays(d, 1)   : addDays(d, 1);
+            if (viewMode === 'week')  return dir === 'prev' ? subWeeks(d, 1)  : addWeeks(d, 1);
+            if (viewMode === 'month') return dir === 'prev' ? subMonths(d, 1) : addMonths(d, 1);
+            return d;
+          });
+        };
         return (
-          <div className="flex items-center gap-3 mb-4">
-            <button onClick={prev} className="p-2 rounded-lg border border-border hover:bg-accent transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-semibold text-sm flex-1 text-center md:text-left">{label}</span>
-            <button onClick={() => setSelectedDate(new Date())} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors">
-              Today
-            </button>
-            <button className="p-2 rounded-lg border border-border hover:bg-accent transition-colors">
-              <CalendarIcon className="w-4 h-4" />
-            </button>
-            <button onClick={next} className="p-2 rounded-lg border border-border hover:bg-accent transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-syne font-bold">{getDateLabel(selectedDate, viewMode)}</h2>
+              <button className="p-1.5 rounded-lg border border-border hover:bg-accent transition-colors">
+                <CalendarDays className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigateDate('prev')} className="flex items-center gap-1 px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-accent transition-colors">
+                <ChevronLeft className="w-4 h-4" /> Prev
+              </button>
+              <button onClick={() => navigateDate('next')} className="flex items-center gap-1 px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-accent transition-colors">
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         );
       })()}
@@ -326,6 +331,7 @@ export default function Bookings() {
             bookings={bookings}
             onSelectBooking={setModalBooking}
             onDayClick={(d) => { setSelectedDate(d); setViewMode('day'); }}
+            selectedDate={selectedDate}
           />
         )
       ) : viewMode !== 'list' ? (
