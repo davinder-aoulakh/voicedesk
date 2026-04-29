@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Phone, Calendar, TrendingUp, Clock, Bot, ArrowUpRight, ChevronRight, AlertCircle } from 'lucide-react';
+import { Phone, Calendar, ChevronRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { format, subDays } from 'date-fns';
+import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SetupGuide from '@/components/dashboard/SetupGuide';
 
 function StatCard({ label, value, sub, desc, delay = 0 }) {
@@ -24,10 +25,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ calls: 0, bookings: 0, customers: 0, avgDuration: 0, agentStatus: 'draft' });
+  const [allBookings, setAllBookings] = useState([]);
   const [recentCalls, setRecentCalls] = useState([]);
-  const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasAgent, setHasAgent] = useState(false);
+  const [period, setPeriod] = useState('7d');
 
   useEffect(() => {
     const load = async () => {
@@ -56,8 +58,8 @@ export default function Dashboard() {
         avgDuration,
         agentStatus: agents[0]?.status || 'draft',
       });
+      setAllBookings(bookings);
       setRecentCalls(calls.slice(0, 5));
-      setUpcomingBookings(bookings.filter(b => b.status !== 'cancelled').slice(0, 5));
       setLoading(false);
     };
     load();
@@ -69,6 +71,38 @@ export default function Dashboard() {
     in_progress: 'text-warning bg-warning/10',
     voicemail: 'text-blue-500 bg-blue-50',
   };
+
+  const PERIODS = [
+    { label: 'Last 7 days', value: '7d', days: 6 },
+    { label: 'Last 30 days', value: '30d', days: 29 },
+    { label: 'Last 3 months', value: '90d', days: 89 },
+  ];
+
+  const periodConfig = PERIODS.find(p => p.value === period);
+  const periodStart = startOfDay(subDays(new Date(), periodConfig.days));
+
+  const filteredBookings = useMemo(() =>
+    allBookings.filter(b => b.created_date && new Date(b.created_date) >= periodStart),
+    [allBookings, period]
+  );
+
+  const aiCount = filteredBookings.filter(b => b.source === 'ai_agent' || b.source === 'phone').length;
+  const webCount = filteredBookings.filter(b => b.source === 'online' || b.source === 'web').length;
+
+  const chartData = useMemo(() => {
+    const days = eachDayOfInterval({ start: periodStart, end: new Date() });
+    return days.map(day => {
+      const dayLabel = format(day, period === '7d' ? 'EEE' : 'MMM d');
+      const dayBookings = filteredBookings.filter(b =>
+        b.created_date && format(new Date(b.created_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+      );
+      return {
+        day: dayLabel,
+        ai: dayBookings.filter(b => b.source === 'ai_agent' || b.source === 'phone').length,
+        web: dayBookings.filter(b => b.source === 'online' || b.source === 'web').length,
+      };
+    });
+  }, [filteredBookings, period]);
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -111,75 +145,104 @@ export default function Dashboard() {
         <StatCard label="Duration" value={stats.avgDuration > 0 ? `${stats.avgDuration}s` : '0s'} sub="No change this period" desc="Average duration across all calls" delay={0.15} />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Calls */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-syne font-semibold text-lg">Recent Calls</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/calls')} className="text-xs text-muted-foreground hover:text-foreground">
-              View all <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-          {recentCalls.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <Phone className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">No calls yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Activate your agent to start receiving calls</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentCalls.map(call => (
-                <div key={call.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${statusColors[call.status] || 'bg-secondary text-foreground'}`}>
-                    <Phone className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{call.caller_name || call.caller_number || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{call.started_at ? format(new Date(call.started_at), 'MMM d, h:mm a') : '—'}</p>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[call.status] || 'bg-secondary text-foreground'}`}>
-                    {call.status}
-                  </span>
-                </div>
+      {/* Bookings Overview */}
+      <div className="bg-card border border-border rounded-2xl p-6 mb-6">
+        {/* Header row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <h3 className="font-syne font-semibold text-lg">Bookings Overview</h3>
+          <div className="flex items-center gap-2">
+            <select className="text-xs border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none">
+              <option>All Locations</option>
+            </select>
+            <div className="flex rounded-lg overflow-hidden border border-border">
+              {PERIODS.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setPeriod(p.value)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    period === p.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-secondary'
+                  }`}
+                >
+                  {p.label}
+                </button>
               ))}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Upcoming Bookings */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-syne font-semibold text-lg">Upcoming Bookings</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/bookings')} className="text-xs text-muted-foreground hover:text-foreground">
-              View all <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-          {upcomingBookings.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <Calendar className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">No bookings yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Bookings from calls will appear here</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {upcomingBookings.map(booking => (
-                <div key={booking.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                    <Calendar className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{booking.customer_name}</p>
-                    <p className="text-xs text-muted-foreground">{booking.service || 'Service'} · {booking.scheduled_at ? format(new Date(booking.scheduled_at), 'MMM d, h:mm a') : 'TBD'}</p>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                    booking.status === 'confirmed' ? 'text-success bg-success/10' :
-                    booking.status === 'pending' ? 'text-warning bg-warning/10' : 'bg-secondary text-foreground'
-                  }`}>{booking.status}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Sub-line */}
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-xs text-muted-foreground">All Locations · {periodConfig.label}</p>
+          <p className="text-xs text-muted-foreground">
+            AI: <span className="font-semibold text-foreground">{aiCount}</span>
+            {' · '}
+            Web: <span className="font-semibold text-foreground">{webCount}</span>
+          </p>
         </div>
+
+        {/* Chart */}
+        {filteredBookings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Calendar className="w-10 h-10 text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No bookings in this period</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={chartData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12 }} />
+              <Bar dataKey="ai" name="AI" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
+              <Bar dataKey="web" name="Web" fill="hsl(var(--muted))" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+
+        <div className="flex gap-4 mt-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="w-2.5 h-2.5 rounded-full bg-primary" /> AI
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="w-2.5 h-2.5 rounded-full bg-muted" /> Web
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Calls */}
+      <div className="bg-card border border-border rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-syne font-semibold text-lg">Recent Calls</h3>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/calls')} className="text-xs text-muted-foreground hover:text-foreground">
+            View all <ChevronRight className="w-3.5 h-3.5 ml-1" />
+          </Button>
+        </div>
+        {recentCalls.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Phone className="w-10 h-10 text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No calls yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Activate your agent to start receiving calls</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentCalls.map(call => (
+              <div key={call.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${statusColors[call.status] || 'bg-secondary text-foreground'}`}>
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{call.caller_name || call.caller_number || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">{call.started_at ? format(new Date(call.started_at), 'MMM d, h:mm a') : '—'}</p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[call.status] || 'bg-secondary text-foreground'}`}>
+                  {call.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
