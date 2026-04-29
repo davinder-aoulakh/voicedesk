@@ -12,6 +12,7 @@ import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, isS
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import CalendarView from '@/components/bookings/CalendarView';
+import DayView from '@/components/bookings/DayView';
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',   color: 'text-warning bg-warning/10 border-warning/20' },
@@ -21,11 +22,12 @@ const STATUS_CONFIG = {
   no_show:   { label: 'No Show',   color: 'text-muted-foreground bg-secondary border-border' },
 };
 
-function BookingModal({ booking, businessId, onClose, onSave }) {
+function BookingModal({ booking, businessId, defaults = {}, onClose, onSave }) {
   const isNew = !booking;
   const [form, setForm] = useState(booking || {
     customer_name: '', customer_phone: '', customer_email: '', service: '',
     service_id: '', staff_id: '', scheduled_at: '', status: 'pending', notes: '', source: 'manual', business_id: businessId,
+    ...defaults,
   });
   const [services, setServices] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -142,14 +144,22 @@ export default function Bookings() {
   const [timeFilter, setTimeFilter] = useState('any');
   const [upcomingFilter, setUpcomingFilter] = useState('upcoming');
   const [showCancelled, setShowCancelled] = useState(false);
+  const [staff, setStaff] = useState([]);
+  const [business, setBusiness] = useState(null);
 
   const load = async () => {
     const user = await base44.auth.me();
     const businesses = await base44.entities.Business.filter({ owner_id: user.id });
     if (!businesses.length) return;
-    setBusinessId(businesses[0].id);
-    const data = await base44.entities.Booking.filter({ business_id: businesses[0].id }, '-scheduled_at', 200);
+    const biz = businesses[0];
+    setBusinessId(biz.id);
+    setBusiness(biz);
+    const [data, staffData] = await Promise.all([
+      base44.entities.Booking.filter({ business_id: biz.id }, '-scheduled_at', 200),
+      base44.entities.Staff.filter({ business_id: biz.id, is_active: true }),
+    ]);
     setBookings(data);
+    setStaff(staffData);
     setLoading(false);
   };
 
@@ -228,7 +238,7 @@ export default function Bookings() {
           <Button onClick={() => navigate('/services')} variant="outline" className="border-primary/30 bg-accent text-primary gap-1.5 rounded-full">
             <Zap className="w-4 h-4" /> Service Business
           </Button>
-          <Button onClick={() => setShowNewModal(true)} className="gradient-primary border-0 text-white shadow-lg shadow-primary/20">
+          <Button onClick={() => setShowNewModal({})} className="gradient-primary border-0 text-white shadow-lg shadow-primary/20">
             <Plus className="w-4 h-4 mr-2" /> New Booking
           </Button>
         </div>
@@ -322,7 +332,7 @@ export default function Bookings() {
         );
       })()}
 
-      {/* Calendar view */}
+      {/* Calendar / Day / Week views */}
       {viewMode === 'month' ? (
         loading ? (
           <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
@@ -334,7 +344,24 @@ export default function Bookings() {
             selectedDate={selectedDate}
           />
         )
-      ) : viewMode !== 'list' ? (
+      ) : viewMode === 'day' ? (
+        loading ? (
+          <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
+        ) : (
+          <DayView
+            bookings={bookings}
+            staff={staff}
+            selectedDate={selectedDate}
+            onSelectBooking={setModalBooking}
+            onAddBooking={({ staff_id, staff_name, date, hour }) => {
+              const scheduled_at = new Date(date);
+              scheduled_at.setHours(hour, 0, 0, 0);
+              setShowNewModal({ staff_id, scheduled_at: scheduled_at.toISOString() });
+            }}
+            businessHours={business?.business_hours}
+          />
+        )
+      ) : viewMode === 'week' ? (
         <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
       ) : (
         <>
@@ -392,7 +419,7 @@ export default function Bookings() {
               <p className="text-sm text-muted-foreground mt-1 max-w-xs">
                 There are no bookings scheduled for this date range.
               </p>
-              <Button onClick={() => setShowNewModal(true)} className="mt-5 gradient-primary border-0 text-white">
+              <Button onClick={() => setShowNewModal({})} className="mt-5 gradient-primary border-0 text-white">
                 <Plus className="w-4 h-4 mr-2" /> Add Booking
               </Button>
             </div>
@@ -450,7 +477,12 @@ export default function Bookings() {
         </>
       )}
 
-      {showNewModal && <BookingModal businessId={businessId} onClose={() => setShowNewModal(false)} onSave={() => { setShowNewModal(false); load(); }} />}
+      {showNewModal && <BookingModal
+        businessId={businessId}
+        defaults={typeof showNewModal === 'object' ? showNewModal : {}}
+        onClose={() => setShowNewModal(false)}
+        onSave={() => { setShowNewModal(false); load(); }}
+      />}
       {modalBooking && <BookingModal booking={modalBooking} businessId={businessId} onClose={() => setModalBooking(null)} onSave={() => { setModalBooking(null); load(); }} />}
     </div>
   );
