@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap } from 'lucide-react';
+import { Calendar, Plus, Search, Check, X, Clock, User, List, LayoutGrid, Zap, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -201,6 +201,58 @@ export default function Bookings() {
           <Button onClick={() => setShowNewModal(true)} className="gradient-primary border-0 text-white shadow-lg shadow-primary/20">
             <Plus className="w-4 h-4 mr-2" /> New Booking
           </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Total Bookings */}
+        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center shrink-0">
+            <LayoutGrid className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <p className="text-3xl font-syne font-bold">{bookings.length}</p>
+            <p className="text-sm font-medium text-muted-foreground">Total Bookings</p>
+          </div>
+        </div>
+
+        {/* Cancelled */}
+        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+            <XCircle className="w-6 h-6 text-destructive" />
+          </div>
+          <div>
+            <p className="text-3xl font-syne font-bold text-destructive">{bookings.filter(b => b.status === 'cancelled').length}</p>
+            <p className="text-sm font-medium text-muted-foreground">Cancelled</p>
+          </div>
+        </div>
+
+        {/* Time Distribution */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <p className="text-sm font-medium mb-2">Time Distribution</p>
+          {(() => {
+            const hours = Array.from({ length: 17 }, (_, i) => i + 7); // 7am–11pm
+            const max = Math.max(1, ...hours.map(h => bookings.filter(b => b.scheduled_at && new Date(b.scheduled_at).getHours() === h).length));
+            return (
+              <div>
+                <div className="flex items-end gap-0.5 h-8">
+                  {hours.map(h => {
+                    const count = bookings.filter(b => b.scheduled_at && new Date(b.scheduled_at).getHours() === h).length;
+                    const heightPct = count / max;
+                    return (
+                      <div key={h} className="flex-1 flex items-end">
+                        <div className="w-full rounded-sm bg-primary/60" style={{ height: `${Math.max(2, Math.round(heightPct * 24))}px` }} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>7am</span><span>12pm</span><span>5pm</span><span>11pm</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
