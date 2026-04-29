@@ -143,6 +143,7 @@ export default function Onboarding() {
   const [completedBadges, setCompletedBadges]   = useState([]);
   const [progressPct, setProgressPct]           = useState(0);
   const [showSuccess, setShowSuccess]           = useState(false);
+  const [linkStatus, setLinkStatus]             = useState('idle'); // 'idle' | 'provisioning' | 'linking' | 'done' | 'error'
   const apiPromiseRef = useRef(null);
 
   // ── Step 1 → 2 ────────────────────────────────────────────────────────────
@@ -302,16 +303,16 @@ You help customers with bookings, enquiries, and information. When booking, coll
 
   // ── Step 5: provision phone + animated completion ─────────────────────────
   const handleProvisionPhone = async () => {
-    // Reset completion state and move to step 6 (animated)
     setCompleting(true);
     setCompletedBadges([]);
     setProgressPct(0);
     setShowSuccess(false);
+    setLinkStatus('idle');
     setStep(6);
 
-    // Run API calls in parallel — store promise for later awaiting
     const apiPromise = (async () => {
       try {
+        setLinkStatus('provisioning');
         const provRes = await base44.functions.invoke('provisionPhoneNumber', {
           business_id: createdBusiness.id,
           country: selectedNumber?.country_code || business.country || 'AU',
@@ -319,23 +320,42 @@ You help customers with bookings, enquiries, and information. When booking, coll
         });
         const { phone_number, phone_sid } = provRes.data;
         setPhoneNumber(phone_number);
-        await base44.entities.Business.update(createdBusiness.id, {
-          twilio_phone_number: phone_number, twilio_phone_sid: phone_sid, onboarding_completed: true,
-        });
+
         const agents = await base44.entities.Agent.filter({ business_id: createdBusiness.id });
         const vapiAssistantId = agents[0]?.vapi_assistant_id;
+
+        setLinkStatus('linking');
         if (vapiAssistantId && phone_number && phone_sid) {
-          try {
-            await base44.functions.invoke('linkVapiPhoneNumber', {
-              business_id: createdBusiness.id, assistant_id: vapiAssistantId,
+          const linkRes = await base44.functions.invoke('linkVapiPhoneNumber', {
+            business_id: createdBusiness.id, assistant_id: vapiAssistantId,
+            twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
+          });
+          const vapiPhoneNumberId = linkRes.data?.vapi_phone_number_id;
+          await Promise.all([
+            base44.entities.Business.update(createdBusiness.id, {
               twilio_phone_number: phone_number, twilio_phone_sid: phone_sid,
-            });
-          } catch (linkErr) {
-            console.warn('VAPI phone linking failed (non-fatal):', linkErr.message);
-          }
+              onboarding_completed: true,
+              ...(vapiPhoneNumberId && { vapi_phone_number_id: vapiPhoneNumberId }),
+            }),
+            agents[0]?.id && base44.entities.Agent.update(agents[0].id, { status: 'active' }),
+          ]);
+          setLinkStatus('done');
+        } else {
+          await base44.entities.Business.update(createdBusiness.id, {
+            twilio_phone_number: phone_number, twilio_phone_sid: phone_sid, onboarding_completed: true,
+          });
+          setLinkStatus('done');
         }
       } catch (e) {
-        toast.error('Phone provisioning failed: ' + e.message);
+        if (linkStatus === 'linking' || e.message?.toLowerCase().includes('link')) {
+          setLinkStatus('error');
+          toast.error('AI agent linking failed — your phone number was purchased but needs to be linked manually. Go to Phone settings to complete setup.');
+          await base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true });
+        } else {
+          setLinkStatus('error');
+          toast.error('Phone provisioning failed: ' + e.message);
+          await base44.entities.Business.update(createdBusiness.id, { onboarding_completed: true });
+        }
       }
     })();
 
@@ -840,6 +860,7 @@ You help customers with bookings, enquiries, and information. When booking, coll
                 apiPromiseRef={apiPromiseRef}
                 seedSummary={seedSummary}
                 phoneNumber={phoneNumber}
+                linkStatus={linkStatus}
                 onNavigate={() => navigate('/dashboard')}
               />
             )}

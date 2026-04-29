@@ -33,6 +33,7 @@ export default function CompletionStep({
   showSuccess, setShowSuccess,
   apiPromiseRef,
   seedSummary, phoneNumber,
+  linkStatus,
   onNavigate,
 }) {
   const timersRef = useRef([]);
@@ -113,20 +114,30 @@ export default function CompletionStep({
         {/* Badges */}
         <div className="grid grid-cols-2 gap-3">
           {BADGES.map((badge, idx) => {
-            const done = completedBadges.includes(idx);
+            // Badge 2 (index 2) = "Configuring AI" — driven by real linkStatus
+            let done = completedBadges.includes(idx);
+            let isError = false;
+            if (idx === 2) {
+              if (linkStatus === 'done') done = true;
+              if (linkStatus === 'error') { done = false; isError = true; }
+            }
             return (
               <motion.div
                 key={badge.label}
                 animate={done ? { scale: 1, opacity: 1 } : { scale: 0.97, opacity: 0.85 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="flex items-center gap-2.5 px-3 py-3 rounded-xl border text-sm font-medium"
-                style={done
-                  ? { background: '#EDE9FF', borderColor: '#C4B5FD', color: '#6C3BFF' }
-                  : { background: '#F3F4F6', borderColor: '#E5E7EB', color: '#6B7280' }
+                style={isError
+                  ? { background: '#FEF2F2', borderColor: '#FECACA', color: '#DC2626' }
+                  : done
+                    ? { background: '#EDE9FF', borderColor: '#C4B5FD', color: '#6C3BFF' }
+                    : { background: '#F3F4F6', borderColor: '#E5E7EB', color: '#6B7280' }
                 }
               >
-                {done ? <CheckBadgeIcon /> : <SpinnerIcon />}
-                <span>{badge.label}</span>
+                {isError
+                  ? <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center shrink-0"><span className="text-white text-xs font-bold">!</span></div>
+                  : done ? <CheckBadgeIcon /> : <SpinnerIcon />}
+                <span>{isError ? 'Link failed' : badge.label}</span>
               </motion.div>
             );
           })}
