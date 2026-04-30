@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import CalendarView from '@/components/bookings/CalendarView';
 import DayView from '@/components/bookings/DayView';
+import WeekView from '@/components/bookings/WeekView';
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',   color: 'text-warning bg-warning/10 border-warning/20' },
@@ -362,7 +363,20 @@ export default function Bookings() {
           />
         )
       ) : viewMode === 'week' ? (
-        <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
+        loading ? (
+          <div className="h-96 bg-card border border-border rounded-2xl animate-pulse" />
+        ) : (
+          <WeekView
+            bookings={bookings}
+            selectedDate={selectedDate}
+            onSelectBooking={setModalBooking}
+            onAddBooking={({ date, hour }) => {
+              const scheduled_at = new Date(date);
+              scheduled_at.setHours(hour, 0, 0, 0);
+              setShowNewModal({ scheduled_at: scheduled_at.toISOString() });
+            }}
+          />
+        )
       ) : (
         <>
           {/* Filters */}
